@@ -1,0 +1,502 @@
+{
+  "name": "JsatReadme - 02 - Jira generic issue enricher",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# Jira generic issue enricher\nDado un commit, se busca el SIS y/o el REC, de cada uno se obtienen sus datos correspondientes",
+        "height": 106,
+        "width": 694,
+        "color": 5
+      },
+      "id": "95af51a1-6647-4481-acc5-0d9711bc4084",
+      "name": "NOTE - 190",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        -400
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "9d282ca0-5501-4c54-ab7d-91ce4211d039",
+      "name": "When executed by another workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -192,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const seed = { ...$json };\nconst issueKey = String(seed.issueKey || '').trim().toUpperCase();\nif (!/^(SIS|REC)-\\d+$/.test(issueKey)) throw new Error(`issueKey inválido: ${issueKey || '(vacío)'}`);\nfor (const required of ['jiraBaseUrl', 'jiraApiVersion']) {\n  if (!String(seed[required] || seed.context?.[required] || '').trim()) throw new Error(`Falta ${required} para ${issueKey}`);\n}\nconst context = { ...(seed.context || {}), ...seed };\nreturn { json: { ...seed, issueKey, jiraBaseUrl: context.jiraBaseUrl, jiraApiVersion: context.jiraApiVersion, jiraPageSize: Math.min(Math.max(Number(context.jiraPageSize || 100),1),100) } };"
+      },
+      "id": "268d47cf-9ca4-4d6c-9f62-e1731acfb91b",
+      "name": "Validate issue seeds",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.jiraBaseUrl + '/rest/api/' + $json.jiraApiVersion + '/issue/' + encodeURIComponent($json.issueKey) + '?fields=summary,issuetype,status,resolution,priority,assignee,reporter,labels,components,fixVersions,versions,created,updated,description,issuelinks&expand=renderedFields' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "jiraSoftwareCloudApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": []
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "e9242a1b-b020-44bf-8cce-c4fae76fd3d6",
+      "name": "Jira - Get issue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        320,
+        -224
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1200,
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "uVrPjxNIZkSyJGFi",
+          "name": "Jira SW Cloud account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "={ $json.jiraBaseUrl + '/rest/api/' + $json.jiraApiVersion + '/issue/' + encodeURIComponent($json.issueKey) + '/comment' }",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "jiraSoftwareCloudApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "maxResults",
+              "value": "={{ $json.jiraPageSize }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "startAt",
+                    "value": "={{ $pageCount * $json.jiraPageSize }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body || $response.body.isLast === true || (Array.isArray($response.body.values) && $response.body.values.length < $json.jiraPageSize) || (Array.isArray($response.body.comments) && $response.body.comments.length < $json.jiraPageSize) || (Array.isArray($response.body.worklogs) && $response.body.worklogs.length < $json.jiraPageSize) || (Number.isFinite(Number($response.body.total)) && (Number($response.body.startAt || 0) + Number($response.body.maxResults || 0) >= Number($response.body.total))) }}",
+              "requestInterval": 175
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "id": "d65030f3-7a66-48b6-a4b8-532b16b96c5e",
+      "name": "Jira - Get comments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        320,
+        -48
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1200,
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "uVrPjxNIZkSyJGFi",
+          "name": "Jira SW Cloud account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "={ $json.jiraBaseUrl + '/rest/api/' + $json.jiraApiVersion + '/issue/' + encodeURIComponent($json.issueKey) + '/worklog' }",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "jiraSoftwareCloudApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "maxResults",
+              "value": "={{ $json.jiraPageSize }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "startAt",
+                    "value": "={{ $pageCount * $json.jiraPageSize }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body || $response.body.isLast === true || (Array.isArray($response.body.values) && $response.body.values.length < $json.jiraPageSize) || (Array.isArray($response.body.comments) && $response.body.comments.length < $json.jiraPageSize) || (Array.isArray($response.body.worklogs) && $response.body.worklogs.length < $json.jiraPageSize) || (Number.isFinite(Number($response.body.total)) && (Number($response.body.startAt || 0) + Number($response.body.maxResults || 0) >= Number($response.body.total))) }}",
+              "requestInterval": 175
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "id": "bff6644f-98e2-422d-b040-bb0c3f39072d",
+      "name": "Jira - Get worklogs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        320,
+        144
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1200,
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "uVrPjxNIZkSyJGFi",
+          "name": "Jira SW Cloud account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "={ $json.jiraBaseUrl + '/rest/api/' + $json.jiraApiVersion + '/issue/' + encodeURIComponent($json.issueKey) + '/changelog' }",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "jiraSoftwareCloudApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "maxResults",
+              "value": "={{ $json.jiraPageSize }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "startAt",
+                    "value": "={{ $pageCount * $json.jiraPageSize }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body || $response.body.isLast === true || (Array.isArray($response.body.values) && $response.body.values.length < $json.jiraPageSize) || (Array.isArray($response.body.comments) && $response.body.comments.length < $json.jiraPageSize) || (Array.isArray($response.body.worklogs) && $response.body.worklogs.length < $json.jiraPageSize) || (Number.isFinite(Number($response.body.total)) && (Number($response.body.startAt || 0) + Number($response.body.maxResults || 0) >= Number($response.body.total))) }}",
+              "requestInterval": 175
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "id": "f3badd4c-d826-496b-bbac-db9d7ccb0d70",
+      "name": "Jira - Get changelog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        320,
+        320
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1200,
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "uVrPjxNIZkSyJGFi",
+          "name": "Jira SW Cloud account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const seed = $('Validate issue seeds').item.json;\nreturn { json: { recordType: 'issue', issueKey: seed.issueKey, seed, payload: $json } };"
+      },
+      "id": "07de5d41-2d53-460e-99a9-9a5875609e8e",
+      "name": "Wrap issue response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        -224
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const seed = $('Validate issue seeds').item.json;\nreturn { json: { recordType: 'commentsPage', issueKey: seed.issueKey, seed, payload: $json } };"
+      },
+      "id": "5d3c4858-5042-4e3a-ac11-40168360f3bf",
+      "name": "Wrap comments pages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const seed = $('Validate issue seeds').item.json;\nreturn { json: { recordType: 'worklogsPage', issueKey: seed.issueKey, seed, payload: $json } };"
+      },
+      "id": "dd684a32-5bea-49cd-9a5e-e847312ce3f0",
+      "name": "Wrap worklogs pages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const seed = $('Validate issue seeds').item.json;\nreturn { json: { recordType: 'changelogPage', issueKey: seed.issueKey, seed, payload: $json } };"
+      },
+      "id": "837622f1-ce5e-4cb2-b8d5-5668ba309ace",
+      "name": "Wrap changelog pages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "id": "d8348238-9c5d-4951-9f24-b54ee431fd9e",
+      "name": "Merge issue raw responses",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        832,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map((item) => item.json).filter((row) => row.issueKey);\nconst byKey = new Map();\nfor (const row of rows) {\n  if (!byKey.has(row.issueKey)) byKey.set(row.issueKey, []);\n  byKey.get(row.issueKey).push(row);\n}\nfunction allText(value, out = []) {\n  if (value == null) return out;\n  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') { out.push(String(value)); return out; }\n  if (Array.isArray(value)) { value.forEach((v) => allText(v, out)); return out; }\n  if (typeof value === 'object') Object.values(value).forEach((v) => allText(v, out));\n  return out;\n}\nfunction refs(value, prefix) {\n  const r = new RegExp(`\\\\b${prefix}[\\\\s_-]*(\\\\d+)\\\\b`, 'gi'); const keys = new Set();\n  for (const text of allText(value)) for (const m of text.matchAll(r)) keys.add(`${prefix}-${m[1]}`);\n  return [...keys];\n}\nfunction pageItems(pages, candidates) {\n  const result=[]; for (const page of pages) { const source = page?.values || candidates.map((k)=>page?.[k]).find(Array.isArray) || []; result.push(...source); }\n  const seen = new Set(); return result.filter((v)=>{ const key=v?.id || JSON.stringify(v); if(seen.has(key)) return false; seen.add(key); return true; });\n}\nreturn [...byKey.entries()].map(([issueKey, group]) => {\n  const seed = group[0].seed || {};\n  const issue = group.find((r) => r.recordType === 'issue')?.payload || {};\n  const comments = pageItems(group.filter((r)=>r.recordType==='commentsPage').map((r)=>r.payload), ['comments']);\n  const worklogs = pageItems(group.filter((r)=>r.recordType==='worklogsPage').map((r)=>r.payload), ['worklogs']);\n  const changelog = pageItems(group.filter((r)=>r.recordType==='changelogPage').map((r)=>r.payload), ['histories']);\n  const fields = issue.fields || {};\n  const links = (fields.issuelinks || []).map((link) => {\n    const related = link.outwardIssue || link.inwardIssue; if (!related?.key) return null;\n    return { key: String(related.key).toUpperCase(), relation: link.type?.name || null, direction: link.outwardIssue ? 'outward' : 'inward', source: 'issueLink', summary: related.fields?.summary || null };\n  }).filter(Boolean);\n  const all = { fields, renderedFields: issue.renderedFields || {}, comments, worklogs, changelog };\n  const own = String(issueKey).toUpperCase();\n  const relatedSisKeys = [...new Set([...links.filter((l)=>/^SIS-\\d+$/.test(l.key)).map((l)=>l.key), ...refs(all,'SIS').filter((k)=>k!==own)])];\n  const recKeys = [...new Set([...links.filter((l)=>/^REC-\\d+$/.test(l.key)).map((l)=>l.key), ...refs(all,'REC')])];\n  const compactComments = comments.slice(-Math.max(0,Number(seed.maxStoredIssueComments || 12))).map((c)=>({id:c.id||null, created:c.created||null, author:c.author?.displayName||c.author?.name||null, body: allText(c.renderedBody || c.body).join(' ').replace(/\\s+/g,' ').slice(0,Number(seed.maxStoredCommentChars || 1000)) }));\n  const description = allText(issue.renderedFields?.description || fields.description).join(' ').replace(/\\s+/g,' ');\n  const errors=group.filter((r)=>r.payload && !r.payload.fields && (r.payload.error || r.payload.message)).map((r)=>({source:r.recordType,message:r.payload.message||r.payload.error,statusCode:r.payload.statusCode||r.payload.code||null}));\n  return { json: {\n    kind:'issueRecord', role:seed.role || 'unknown', issueKey:own, context:seed.context || {},\n    originCommitShas:seed.originCommitShas || [], relatedFrom:seed.relatedFrom || [],\n    issue:{ key:own, browseUrl:`${seed.jiraBaseUrl}/browse/${own}`, fetchStatus:issue.fields?'retrieved':(errors.length?'failedOrMissing':'notRetrieved'),\n      normalized:{summary:fields.summary||null, issueType:fields.issuetype?.name||null,status:fields.status?.name||null,resolution:fields.resolution?.name||null,priority:fields.priority?.name||null,assignee:fields.assignee?.displayName||fields.assignee?.name||null,labels:fields.labels||[],components:(fields.components||[]).map((v)=>v.name).filter(Boolean),fixVersions:(fields.fixVersions||[]).map((v)=>v.name).filter(Boolean),description:description.slice(0,Number(seed.maxStoredIssueDescriptionChars || 8000)),descriptionText:description.slice(0,Number(seed.maxStoredIssueDescriptionChars || 8000)),descriptionTruncated:description.length>Number(seed.maxStoredIssueDescriptionChars || 8000)},\n      relationships:{linkedIssues:links,relatedSisKeys,recKeys}, evidence:{comments:compactComments,activityScanned:{comments:comments.length,worklogs:worklogs.length,changelog:changelog.length}} }, fetchErrors:errors\n  }};\n});"
+      },
+      "id": "c49d8d83-aa03-4435-befd-76edb801a4e7",
+      "name": "Compile generic issue record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        64
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When executed by another workflow": {
+      "main": [
+        [
+          {
+            "node": "Validate issue seeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate issue seeds": {
+      "main": [
+        [
+          {
+            "node": "Jira - Get issue",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Jira - Get comments",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Jira - Get worklogs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Jira - Get changelog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira - Get issue": {
+      "main": [
+        [
+          {
+            "node": "Wrap issue response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira - Get comments": {
+      "main": [
+        [
+          {
+            "node": "Wrap comments pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira - Get worklogs": {
+      "main": [
+        [
+          {
+            "node": "Wrap worklogs pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jira - Get changelog": {
+      "main": [
+        [
+          {
+            "node": "Wrap changelog pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wrap issue response": {
+      "main": [
+        [
+          {
+            "node": "Merge issue raw responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wrap comments pages": {
+      "main": [
+        [
+          {
+            "node": "Merge issue raw responses",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Wrap worklogs pages": {
+      "main": [
+        [
+          {
+            "node": "Merge issue raw responses",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Wrap changelog pages": {
+      "main": [
+        [
+          {
+            "node": "Merge issue raw responses",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merge issue raw responses": {
+      "main": [
+        [
+          {
+            "node": "Compile generic issue record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "8fb5da38-653f-4384-ae4e-c9f09dbdec4d",
+  "meta": {
+    "instanceId": "1b16b1df538ba12dc3f97edbb85caa7050d46c148134290feba80f8236c83db9"
+  },
+  "id": "0OqZA028gKTha5RA",
+  "tags": []
+}

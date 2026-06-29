@@ -1,0 +1,377 @@
+{
+  "name": "JsatReadme - 01 - GitHub Release Collector (detailed files fixed)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# GitHub release collector\nObtengo todos los commits entre 2 versiones cualquiera, el usuario me tiene que pasar la versión actual y se va a buscar todos los commits entre esa versión y la anterior ",
+        "height": 170,
+        "width": 850,
+        "color": 5
+      },
+      "id": "9cb86591-0381-4ffb-9baa-aea8c67116fb",
+      "name": "NOTE - 300",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        5264,
+        1216
+      ]
+    },
+    {
+      "parameters": {
+        "content": "El loop controla una consulta GitHub por SHA. La salida **done** recién consolida los commit records para que el subworkflow sea reutilizable.",
+        "height": 90,
+        "width": 650,
+        "color": 5
+      },
+      "id": "1ea7f6b5-7946-407e-9302-a1353fc20e6a",
+      "name": "NOTE - 1480",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        6448,
+        1664
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "7f4b0356-6579-4ddc-bdbd-7fbc40a748b4",
+      "name": "When executed by another workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        4976,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const config = { ...$json };\nfor (const required of ['repoOwner', 'repoName', 'currentVersion', 'currentRef', 'githubApiBase']) {\n  if (!String(config[required] || '').trim()) {\n    throw new Error(`Missing required GitHub release input: ${required}`);\n  }\n}\nreturn { json: { ...config, tagsPerPage: Math.min(Math.max(Number(config.tagsPerPage || 100), 1), 100) } };"
+      },
+      "id": "5e6e6d37-4962-41b5-b6ff-a93d5fa2cf00",
+      "name": "Normalize GitHub input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5184,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.githubApiBase + '/repos/' + $json.repoOwner + '/' + $json.repoName + '/tags' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "per_page",
+              "value": "={{ Math.min(Number($json.tagsPerPage || 100), 100) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "page",
+                    "value": "={{ $pageCount + 1 }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body || !Array.isArray($response.body) || $response.body.length < Math.min(Number($json.tagsPerPage || 100), 100) }}",
+              "requestInterval": 175
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "id": "822fe90b-dedb-43c9-9a24-f82fa0a4c31b",
+      "name": "GitHub - List tags",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        5472,
+        1456
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1200,
+      "credentials": {
+        "githubApi": {
+          "id": "RRDa5N5ND2ALvEW0",
+          "name": "GitHub account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputs = $('Normalize GitHub input').first().json;\nconst tagPages = $input.all().map((item) => item.json);\n\nfunction parseVersion(value) {\n  const match = String(value || '').trim().match(/^(\\d+)\\.(\\d+)\\.(\\d+)$/);\n  return match ? { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) } : null;\n}\n\nfunction versionFromTag(tagName) {\n  const match = String(tagName || '').match(/(?:^|[^0-9])(\\d+\\.\\d+\\.\\d+)(?=$|[^0-9])/);\n  return match ? parseVersion(match[1]) : null;\n}\n\nfunction compareVersion(a, b) {\n  return a.major - b.major || a.minor - b.minor || a.patch - b.patch;\n}\n\nfunction sameVersion(a, b) {\n  return a.major === b.major && a.minor === b.minor && a.patch === b.patch;\n}\n\nfunction buildRank(tagName) {\n  const match = String(tagName || '').match(/(?:^|[-_])b(\\d{6,14})(?:$|[-_])/i);\n  return match ? Number(match[1]) : -1;\n}\n\nconst tagEntries = tagPages.flatMap((page) => Array.isArray(page) ? page : [page]);\nconst tags = tagEntries.filter((tag) => tag && typeof tag.name === 'string');\nconst tagFetchErrors = tagEntries\n  .filter((entry) => !Array.isArray(entry) && entry && typeof entry === 'object' && !entry.name && (entry.error || entry.message))\n  .map((entry) => ({\n    message: entry.message || entry.error || 'Unknown tag fetch error',\n    statusCode: entry.statusCode || entry.code || null,\n    raw: entry,\n  }));\n\nconst currentVersion = String(inputs.currentVersion || '').trim();\nconst currentRef = String(inputs.currentRef || currentVersion).trim();\nconst current = parseVersion(currentVersion);\nconst previousTagOverride = String(inputs.previousTagOverride || '').trim() || null;\nconst previousVersionOverride = String(inputs.previousVersionOverride || '').trim() || null;\n\nif (!currentVersion) {\n  throw new Error('currentVersion is empty. Expected a semantic version like 1.2.28.');\n}\nif (!current) {\n  throw new Error(`Invalid currentVersion \"${currentVersion}\". Expected x.y.z.`);\n}\nif (!currentRef) {\n  throw new Error('currentRef is empty. Set the GitHub tag, branch, or SHA for the release.');\n}\n\nconst warnings = [];\nif (tagFetchErrors.length) {\n  warnings.push(`GitHub tags request returned ${tagFetchErrors.length} error item(s).`);\n}\n\nlet previousTag = previousTagOverride;\nlet previousVersion = previousVersionOverride;\nlet resolveStatus = previousTag ? 'override' : 'resolved';\nlet previousCandidates = [];\n\nif (!previousTag) {\n  const candidates = tags\n    .map((tag) => ({ ...tag, parsed: versionFromTag(tag.name) }))\n    .filter((tag) => tag.parsed && compareVersion(tag.parsed, current) < 0);\n\n  if (candidates.length === 0) {\n    warnings.push(`No previous Git tag was found before ${currentVersion}.`);\n    resolveStatus = 'unresolved';\n  } else {\n    const previousParsed = candidates\n      .map((tag) => tag.parsed)\n      .sort((a, b) => compareVersion(b, a))[0];\n\n    previousCandidates = candidates\n      .filter((tag) => sameVersion(tag.parsed, previousParsed))\n      .sort((a, b) => buildRank(b.name) - buildRank(a.name) || String(b.name).localeCompare(String(a.name)));\n\n    previousTag = previousCandidates[0]?.name || null;\n    previousVersion = `${previousParsed.major}.${previousParsed.minor}.${previousParsed.patch}`;\n\n    if (!previousTag) {\n      warnings.push('A previous version was identified but no concrete tag could be selected.');\n      resolveStatus = 'unresolved';\n    }\n  }\n}\n\nreturn [{\n  json: {\n    ...inputs,\n    currentVersion,\n    currentRef,\n    currentTag: currentRef,\n    previousVersion: previousVersion || null,\n    previousTag: previousTag || null,\n    compareBase: previousTag || null,\n    compareHead: currentRef,\n    tagResolve: {\n      status: resolveStatus,\n      tagsReturned: tags.length,\n      selectedPreviousTag: previousTag || null,\n      previousTagCandidates: previousCandidates.map((tag) => tag.name),\n      selectedCurrentRef: currentRef,\n      warnings,\n      fetchErrors: tagFetchErrors,\n      usedOverride: Boolean(previousTagOverride),\n    },\n  },\n}];\n"
+      },
+      "id": "e47286c7-1fc2-4e33-8500-8eb1f6f0c040",
+      "name": "Resolve previous Git tag",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5728,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{\n  $json.githubApiBase\n  + '/repos/'\n  + $json.repoOwner\n  + '/'\n  + $json.repoName\n  + '/compare/'\n  + encodeURIComponent($json.previousTag)\n  + '...'\n  + encodeURIComponent($json.currentRef)\n}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "per_page",
+              "value": "100"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "page",
+                    "value": "={{ $pageCount + 1 }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{\n  Array.isArray($response.body?.commits)\n  && $response.body.commits.length < 100\n}}",
+              "requestInterval": 175
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "id": "1ce5e3c7-b730-4fa1-aefd-08744eb2db99",
+      "name": "GitHub - Compare commits",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        6016,
+        1456
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1200,
+      "credentials": {
+        "githubApi": {
+          "id": "RRDa5N5ND2ALvEW0",
+          "name": "GitHub account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Resolve previous Git tag').first().json;\nconst pages = $input.all().map((item) => item.json);\n\nconst bySha = new Map();\nfor (const page of pages) {\n  for (const commit of Array.isArray(page?.commits) ? page.commits : []) {\n    if (!commit?.sha || bySha.has(commit.sha)) continue;\n    bySha.set(commit.sha, {\n      sha: commit.sha,\n      url: commit.html_url || null,\n      message: commit.commit?.message || null,\n      date: commit.commit?.author?.date || null,\n      author: {\n        name: commit.commit?.author?.name || null,\n        email: commit.commit?.author?.email || null,\n        login: commit.author?.login || null,\n      },\n      committer: {\n        name: commit.commit?.committer?.name || null,\n        email: commit.commit?.committer?.email || null,\n        login: commit.committer?.login || null,\n      },\n      parents: (commit.parents || []).map((parent) => parent.sha).filter(Boolean),\n    });\n  }\n}\n\nconst compareFetchErrors = pages\n  .filter((page) => page && typeof page === 'object' && !Array.isArray(page) && !page.commits && (page.error || page.message))\n  .map((page) => ({\n    message: page.message || page.error || 'Unknown compare error',\n    statusCode: page.statusCode || page.code || null,\n    raw: page,\n  }));\n\nconst reportedTotal = Math.max(0, ...pages.map((page) => Number(page?.total_commits) || 0));\nconst commits = [...bySha.values()];\nconst warnings = [];\n\nif (!base.compareBase) {\n  warnings.push('Previous Git tag could not be resolved. GitHub compare may be incomplete or empty.');\n}\nif (reportedTotal > 0 && commits.length !== reportedTotal) {\n  warnings.push(`GitHub compare reported ${reportedTotal} commit(s), but ${commits.length} unique commit(s) were consolidated.`);\n}\nif (compareFetchErrors.length) {\n  warnings.push(`GitHub compare produced ${compareFetchErrors.length} error item(s).`);\n}\n\nconst first = pages.find((page) => page && typeof page === 'object' && !Array.isArray(page) && (page.status || page.html_url || page.total_commits != null)) || {};\nconst compareMeta = {\n  status: first.status || null,\n  aheadBy: first.ahead_by ?? null,\n  behindBy: first.behind_by ?? null,\n  totalCommits: reportedTotal || commits.length,\n  htmlUrl: first.html_url || null,\n  pagesFetched: pages.length,\n  commitsFetched: commits.length,\n  warnings,\n  fetchErrors: compareFetchErrors,\n};\n\nif (commits.length === 0) {\n  return [{ json: { ...base, compareMeta, noCommit: true, commit: null } }];\n}\n\nreturn commits.map((commit) => ({\n  json: {\n    ...base,\n    compareMeta,\n    noCommit: false,\n    commit,\n  },\n}));\n"
+      },
+      "id": "4d58ac8f-fb16-4bf1-a940-ef6e82291bb0",
+      "name": "Compile all commits",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6272,
+        1456
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{\n  $json.githubApiBase\n  + '/repos/'\n  + $json.repoOwner\n  + '/'\n  + $json.repoName\n  + '/commits/'\n  + encodeURIComponent($json.commit.sha)\n}}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "d95d3e00-dc54-40eb-a5cb-6d198e6ee1f6",
+      "name": "GitHub - Get commit detail",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        6512,
+        1456
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1200,
+      "credentials": {
+        "githubApi": {
+          "id": "RRDa5N5ND2ALvEW0",
+          "name": "GitHub account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const source = $('Compile all commits').item.json;\nconst detail = $json;\nconst fallback = source.commit || {};\n\nfunction extractSisKeys(text) {\n  const matches = [...String(text || '').matchAll(/\\bSIS[\\s_-]*(\\d+)\\b/gi)];\n  return [...new Set(matches.map((match) => `SIS-${match[1]}`))];\n}\n\nfunction compactPerson(gitPerson, githubUser) {\n  return {\n    name: gitPerson?.name || null,\n    email: gitPerson?.email || null,\n    login: githubUser?.login || null,\n  };\n}\n\nconst hasDetail = Boolean(\n  detail &&\n  typeof detail === 'object' &&\n  detail.sha &&\n  detail.commit &&\n  !detail.error\n);\n\nconst responseError = hasDetail\n  ? null\n  : {\n      message:\n        detail?.error?.message ||\n        detail?.message ||\n        detail?.error ||\n        'GitHub commit detail was not returned.',\n      statusCode:\n        detail?.statusCode ||\n        detail?.status ||\n        detail?.code ||\n        detail?.error?.statusCode ||\n        null,\n    };\n\nconst sha = hasDetail ? detail.sha : fallback.sha || null;\nconst message = hasDetail\n  ? detail.commit?.message || fallback.message || null\n  : fallback.message || null;\n\nconst parents = hasDetail\n  ? (Array.isArray(detail.parents)\n      ? detail.parents.map((parent) => parent?.sha).filter(Boolean)\n      : [])\n  : (Array.isArray(fallback.parents) ? fallback.parents.filter(Boolean) : []);\n\nconst isMergeCommit =\n  parents.length > 1 ||\n  /^merge\\b/i.test(String(message || '').trim());\n\nconst files = hasDetail && Array.isArray(detail.files)\n  ? detail.files.map((file) => ({\n      filename: file?.filename || null,\n      previousFilename: file?.previous_filename || null,\n      status: file?.status || null,\n      additions: file?.additions ?? null,\n      deletions: file?.deletions ?? null,\n      changes: file?.changes ?? null,\n      patch: file?.patch || null,\n      blobUrl: file?.blob_url || null,\n      rawUrl: file?.raw_url || null,\n    }))\n  : [];\n\nconst messageSisKeys = isMergeCommit ? [] : extractSisKeys(message);\n\nreturn {\n  json: {\n    kind: 'commitRecord',\n    context: {\n      repoOwner: source.repoOwner || null,\n      repoName: source.repoName || null,\n      githubApiBase: source.githubApiBase || null,\n      jiraBaseUrl: source.jiraBaseUrl || null,\n      jiraApiVersion: source.jiraApiVersion || '2',\n      currentVersion: source.currentVersion || null,\n      currentRef: source.currentRef || null,\n      previousTag: source.previousTag || null,\n      compareMeta: source.compareMeta || null,\n    },\n    github: {\n      commit: {\n        sha,\n        url: hasDetail ? detail.html_url || fallback.url || null : fallback.url || null,\n        message,\n        messageTruncated: false,\n        date: hasDetail\n          ? detail.commit?.author?.date || fallback.date || null\n          : fallback.date || null,\n        author: hasDetail\n          ? compactPerson(detail.commit?.author, detail.author)\n          : fallback.author || {},\n        committer: hasDetail\n          ? compactPerson(detail.commit?.committer, detail.committer)\n          : fallback.committer || {},\n        parents,\n        isMergeCommit,\n        isReportable: Boolean(sha) && !isMergeCommit,\n        stats: hasDetail ? detail.stats || null : null,\n        files,\n        filesTotal: files.length,\n        filesTruncated: false,\n        detailStatus: hasDetail ? 'retrieved' : 'failed',\n        fetchError: responseError,\n      },\n    },\n    originSisKeys: messageSisKeys,\n    sisDetection: {\n      message: messageSisKeys,\n      patches: [],\n      ignoredBecauseMerge: isMergeCommit,\n      note: isMergeCommit\n        ? 'Technical merge commit excluded from SIS detection and reporting.'\n        : 'SIS detected from the GitHub commit message.',\n    },\n  },\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6768,
+        1456
+      ],
+      "id": "c9f8514c-72a3-4321-84d6-3b6ab9507015",
+      "name": "Normalize detailed commit"
+    },
+    {
+      "parameters": {
+        "jsCode": "const detailed = $input.all().map((item) => item.json);\n\nif (detailed.length === 0) {\n  return [{\n    json: {\n      kind: 'githubCollectorResult',\n      hasCommits: false,\n      collectorStatus: 'noCommitRecordsProduced',\n      warning: 'GitHub collector completed without commit records.',\n    },\n  }];\n}\n\nconst context = detailed.find((row) => row.context)?.context || {};\nconst stats = {\n  total: detailed.length,\n  retrieved: detailed.filter((row) => row.github?.commit?.detailStatus === 'retrieved').length,\n  failed: detailed.filter((row) => row.github?.commit?.detailStatus === 'failed').length,\n  commitsWithFiles: detailed.filter((row) => (row.github?.commit?.files || []).length > 0).length,\n  filesTotal: detailed.reduce(\n    (sum, row) => sum + Number(row.github?.commit?.filesTotal || 0),\n    0\n  ),\n};\n\nreturn detailed.map((record) => ({\n  json: {\n    ...record,\n    collectorStats: stats,\n    context: {\n      ...context,\n      collectorStats: stats,\n    },\n  },\n}));"
+      },
+      "id": "cc6bc287-b9dc-4bb5-8d24-450c595602c1",
+      "name": "Output commit records",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7024,
+        1456
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When executed by another workflow": {
+      "main": [
+        [
+          {
+            "node": "Normalize GitHub input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize GitHub input": {
+      "main": [
+        [
+          {
+            "node": "GitHub - List tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub - List tags": {
+      "main": [
+        [
+          {
+            "node": "Resolve previous Git tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve previous Git tag": {
+      "main": [
+        [
+          {
+            "node": "GitHub - Compare commits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub - Compare commits": {
+      "main": [
+        [
+          {
+            "node": "Compile all commits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compile all commits": {
+      "main": [
+        [
+          {
+            "node": "GitHub - Get commit detail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub - Get commit detail": {
+      "main": [
+        [
+          {
+            "node": "Normalize detailed commit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize detailed commit": {
+      "main": [
+        [
+          {
+            "node": "Output commit records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "6253e07e-912a-4ac7-88cf-ad96ccb779e6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1b16b1df538ba12dc3f97edbb85caa7050d46c148134290feba80f8236c83db9"
+  },
+  "id": "v48M7SDihfxGBEJ9",
+  "tags": []
+}

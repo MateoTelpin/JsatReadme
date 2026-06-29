@@ -1,0 +1,195 @@
+{
+  "name": "JsatReadme - 05 - README AI Generator",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "7f777728-69c2-450d-9a6b-4d03417adeae",
+      "name": "When executed by another workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        16,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $input.all().map((item) => item.json || {});\nconst sourceRow = rows.find((row) => row.rawRelease) || rows.find((row) => row.fullEvidence) || rows.find((row) => row.prompt) || rows[0] || {};\nconst rawRelease = sourceRow.rawRelease || null;\nconst fullEvidence = sourceRow.fullEvidence || null;\nconst legacyPrompt = String(sourceRow.prompt || sourceRow.aiPrompt || sourceRow.readmePrompt || '').trim() || null;\nconst release = rawRelease?.release || fullEvidence?.release || sourceRow.release || {};\nconst batchCommitSize = Math.max(1, Math.min(Number(sourceRow.batchCommitSize || sourceRow.batchSize || 5), 20));\n\nif (!rawRelease && !fullEvidence && !legacyPrompt) {\n  throw new Error('Missing release evidence. Expected rawRelease, fullEvidence or prompt from workflow 04.');\n}\n\nreturn [{\n  json: {\n    kind: 'technicalBatchPipelineInput',\n    release,\n    rawRelease,\n    fullEvidence,\n    legacyPrompt,\n    batchCommitSize\n  }\n}];"
+      },
+      "id": "c42fad26-b667-4c74-950e-44e228fa4450",
+      "name": "Normalize batch pipeline input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const input = $input.first().json || {};\nconst rawRelease = input.rawRelease || {};\nconst fullEvidence = input.fullEvidence || {};\n\nfunction asArray(value) {\n  return Array.isArray(value) ? value : [];\n}\n\nfunction chunk(items, size) {\n  const result = [];\n  for (let index = 0; index < items.length; index += size) {\n    result.push(items.slice(index, index + size));\n  }\n  return result;\n}\n\nfunction unique(values) {\n  return [...new Set(values.filter(Boolean))];\n}\n\nfunction cleanCommitMessage(message) {\n  const text = String(message || '').replace(/\\/\\*+/g, ' ').replace(/\\*+\\//g, ' ').replace(/\\s+/g, ' ').trim();\n  return text || 'Sin detalle de mensaje';\n}\n\nfunction sanitizeCommit(commit) {\n  return {\n    ...commit,\n    message: cleanCommitMessage(commit?.message),\n  };\n}\n\nfunction sanitizeIssue(issue) {\n  return {\n    ...issue,\n    comments: asArray(issue?.comments).slice(0, 2),\n    worklogs: asArray(issue?.worklogs),\n    histories: asArray(issue?.histories),\n  };\n}\n\nconst globalSummary = fullEvidence.diagnostics?.stats || rawRelease.diagnostics?.stats || {};\nconst commitsWithoutSis = fullEvidence.commitsWithoutSis || rawRelease.diagnostics?.commitsWithoutSIS || [];\nconst sisWithoutRec = fullEvidence.sisWithoutRec || rawRelease.diagnostics?.sisWithoutREC || [];\n\nif (input.legacyPrompt) {\n  return [{\n    json: {\n      kind: 'technicalBatchRequest',\n      batchIndex: 1,\n      batchCount: 1,\n      batchCommitShas: [],\n      batchSisKeys: [],\n      release: input.release || {},\n      prompt: input.legacyPrompt,\n      globalSummary,\n      commitsWithoutSis,\n      sisWithoutRec\n    }\n  }];\n}\n\nconst commits = asArray(rawRelease.commits).map(sanitizeCommit);\nconst workItems = asArray(rawRelease.workItems).map(sanitizeIssue);\nconst recItems = asArray(rawRelease.recItems).map(sanitizeIssue);\nconst relationships = rawRelease.relationships || {};\n\nconst commitToSis = asArray(relationships.commitToSis);\nconst sisToRec = asArray(relationships.sisToRec);\n\nif (!commits.length) {\n  const releaseVersion = input.release?.currentVersion || 'sin-version';\n  return [{\n    json: {\n      kind: 'technicalBatchRequest',\n      batchIndex: 1,\n      batchCount: 1,\n      batchCommitShas: [],\n      batchSisKeys: [],\n      release: input.release || {},\n      globalSummary,\n      commitsWithoutSis,\n      sisWithoutRec,\n      prompt: `Release ${releaseVersion}. No hay commits en la evidencia. Genera una nota breve en Markdown indicando que no se encontraron commits para documentar.`\n    }\n  }];\n}\n\nconst chunks = chunk(commits, input.batchCommitSize || 5);\n\nreturn chunks.map((batchCommits, index) => {\n  const batchCommitShas = batchCommits.map((commit) => commit.sha).filter(Boolean);\n  const batchSisKeys = unique([\n    ...batchCommits.flatMap((commit) => asArray(commit.originSisKeys)),\n    ...commitToSis.filter((relation) => batchCommitShas.includes(relation.commitSha)).map((relation) => relation.sisKey)\n  ]);\n\n  const batchWorkItems = workItems.filter((item) => {\n    const key = item?.key || null;\n    const originCommitShas = asArray(item?.originCommitShas);\n    return batchSisKeys.includes(key) || originCommitShas.some((sha) => batchCommitShas.includes(sha));\n  });\n\n  const batchRecKeys = unique([\n    ...sisToRec.filter((relation) => batchSisKeys.includes(relation.sisKey)).map((relation) => relation.recKey),\n    ...batchWorkItems.flatMap((item) => asArray(item?.relationships?.recKeys))\n  ]);\n\n  const batchRecItems = recItems.filter((item) => batchRecKeys.includes(item?.key));\n\n  const batchRelationships = {\n    commitToSis: commitToSis.filter((relation) => batchCommitShas.includes(relation.commitSha)),\n    sisToRec: sisToRec.filter((relation) => batchSisKeys.includes(relation.sisKey)),\n    dependencies: asArray(relationships.dependencies).filter((relation) => batchSisKeys.includes(relation.fromSisKey) || batchSisKeys.includes(relation.toSisKey))\n  };\n\n  const batchEvidence = {\n    release: rawRelease.release || input.release || {},\n    commits: batchCommits,\n    workItems: batchWorkItems,\n    recItems: batchRecItems,\n    relationships: batchRelationships,\n    diagnostics: {\n      stats: {\n        commits: batchCommits.length,\n        sis: batchSisKeys.length,\n        recs: batchRecKeys.length,\n        commitsWithFiles: batchCommits.filter((commit) => asArray(commit.files).length > 0).length,\n        filesTotal: batchCommits.reduce((total, commit) => total + asArray(commit.files).length, 0)\n      }\n    }\n  };\n\n  const releaseVersion = input.release?.currentVersion || rawRelease.release?.currentVersion || 'sin-version';\n  const evidenceText = JSON.stringify(batchEvidence, null, 2);\n  const prompt = `Sos un arquitecto tecnico senior de JSAT.\n\nGenera solamente la documentacion tecnica del lote ${index + 1}/${chunks.length} para la release ${releaseVersion}.\n\nNo devuelvas JSON.\nNo uses bloques de codigo.\nNo escribas introducciones fuera del Markdown.\nNo inventes datos.\nNo generes una portada global de release.\nNo escribas texto editorial, explicaciones de proceso, ni frases como \"este documento fue generado...\".\n\nOBJETIVO:\nDocumentar exclusivamente estos commits: ${batchCommitShas.join(', ') || 'sin commits'}.\nSIS impactados en este lote: ${batchSisKeys.join(', ') || 'sin SIS detectados'}.\n\nREGLAS CRITICAS:\n- El README del lote debe estar organizado por SIS impactado y por commit dentro de cada SIS.\n- Si el mismo SIS aparece en otros lotes, documenta solo la evidencia presente en este lote.\n- Para cada commit, lista explicitamente los archivos modificados incluidos en la evidencia.\n- No reemplaces la lista de archivos por un resumen narrativo.\n- No omitas la seccion Archivos modificados si la evidencia trae archivos.\n- Si un archivo no tiene patch, escribe exactamente: Patch no incluido en la evidencia.\n- No agregues un titulo global tipo Release al lote.\n- No muestres contadores vacios como Comentarios Jira: 0 o Worklogs: 0.\n- Si no hay comentarios Jira, omiti esa seccion por completo.\n- Si no hay worklogs, omiti esa seccion por completo.\n- Si no hay historial, omiti esa seccion por completo.\n- Solo emiti la seccion Evidencia incompleta cuando falte algo realmente importante para entender el cambio tecnico del lote.\n- No pongas como faltante generico Sin comentarios o Sin worklogs si eso no afecta el entendimiento tecnico del cambio.\n- Limpia los mensajes de commit: no muestres delimitadores como /*, */, // o envoltorios decorativos si no aportan informacion.\n\nESTRUCTURA OBLIGATORIA:\n## Lote ${index + 1}\n\n### Resumen del lote\n- Commits cubiertos\n- SIS impactados\n- REC impactados\n- Cantidad de archivos\n\n### SIS-XXXX - Titulo\n#### Jira\n#### REC relacionados\n#### Commits asociados\nPara cada commit:\n- SHA corto\n- fecha\n- autor\n- mensaje limpio\n- stats\n\n##### Archivos modificados\nPara cada archivo:\n- ruta\n- estado\n- additions\n- deletions\n- changes\n- patch relevante si existe\n\n#### Comentarios Jira\nIncluila solo si hay comentarios.\nMuestra solo los 2 comentarios mas recientes.\n\n#### Worklogs\nIncluila solo si hay worklogs.\n\n#### Historial de estados\nIncluila solo si hay historial.\n\n#### Impacto tecnico observado\n#### Riesgos tecnicos\n#### Pruebas recomendadas\n#### Evidencia incompleta\nSolo si aplica.\n\n### Commits del lote sin SIS\nSolo si aplica.\n\nEVIDENCIA DEL LOTE:\n${evidenceText}`;\n\n  return {\n    json: {\n      kind: 'technicalBatchRequest',\n      batchIndex: index + 1,\n      batchCount: chunks.length,\n      batchCommitShas,\n      batchSisKeys,\n      release: input.release || rawRelease.release || {},\n      globalSummary,\n      commitsWithoutSis,\n      sisWithoutRec,\n      prompt\n    }\n  };\n});"
+      },
+      "id": "5f35765d-0e17-43a6-95c4-c73ed1d1c2a8",
+      "name": "Build technical commit batches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "options": {
+          "systemMessage": "Sos un arquitecto tecnico senior de JSAT. Escribis Markdown tecnico limpio, preciso y sin inventar informacion. No agregas texto editorial ni secciones vacias. Si faltan datos no inventas, pero tampoco rellenas con ruido."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        816,
+        112
+      ],
+      "id": "fe4c79d4-6cf9-468a-af7d-961c17c44a86",
+      "name": "AI Agent tecnico"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const markdown = String(\n  $json.output ||\n  $json.text ||\n  $json.response ||\n  ''\n).trim();\n\nreturn {\n  json: {\n    kind: 'technicalBatchMarkdown',\n    batchIndex: Number($json.batchIndex || 0),\n    batchCount: Number($json.batchCount || 0),\n    batchCommitShas: Array.isArray($json.batchCommitShas) ? $json.batchCommitShas : [],\n    batchSisKeys: Array.isArray($json.batchSisKeys) ? $json.batchSisKeys : [],\n    release: $json.release || {},\n    globalSummary: $json.globalSummary || {},\n    commitsWithoutSis: Array.isArray($json.commitsWithoutSis) ? $json.commitsWithoutSis : [],\n    sisWithoutRec: Array.isArray($json.sisWithoutRec) ? $json.sisWithoutRec : [],\n    technicalMarkdown: markdown || null,\n    status: markdown ? 'generated' : 'emptyResponse'\n  }\n};"
+      },
+      "id": "08d9c701-5c73-43e7-8c8b-73764ea21eeb",
+      "name": "Normalize technical batch response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $input.all().map((item) => item.json || {});\nconst ordered = rows.sort((a, b) => Number(a.batchIndex || 0) - Number(b.batchIndex || 0));\n\nif (!ordered.length) {\n  throw new Error('No technical batch markdown was generated.');\n}\n\nfunction cleanInlineArtifacts(text) {\n  return String(text || '')\n    .replace(/\\/\\*+/g, ' ')\n    .replace(/\\*+\\//g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\nfunction cleanBatchMarkdown(markdown) {\n  let text = String(markdown || '').trim();\n  text = text.replace(/^#\\s+Release\\s+.*?\\n+/i, '');\n  text = text.replace(/^##\\s+Alcance tecnico\\n+[\\s\\S]*?(?=^##\\s|^###\\s|^##\\sLote\\s|\\Z)/im, '');\n  text = text.replace(/^##\\s+Resumen de trazabilidad\\n+[\\s\\S]*?(?=^##\\s|^###\\s|^##\\sLote\\s|\\Z)/im, '');\n  text = text.replace(/^[-*]\\s+Lotes procesados\\s*:\\s*.*$/gim, '');\n  text = text.replace(/^Este documento fue generado.*$/gim, '');\n  text = text.replace(/\\/\\*+/g, '');\n  text = text.replace(/\\*+\\//g, '');\n  text = text.replace(/\\n{3,}/g, '\\n\\n');\n  return text.trim();\n}\n\nconst release = ordered[0]?.release || {};\nconst releaseVersion = release.currentVersion || 'sin-version';\nconst globalSummary = ordered[0]?.globalSummary || {};\nconst commitsWithoutSis = ordered[0]?.commitsWithoutSis || [];\nconst sisWithoutRec = ordered[0]?.sisWithoutRec || [];\n\nconst mergedBatches = ordered\n  .map((row) => cleanBatchMarkdown(row.technicalMarkdown))\n  .filter(Boolean)\n  .join('\\n\\n---\\n\\n')\n  .trim();\n\nconst summaryLines = [\n  ['Commits totales', globalSummary.commits],\n  ['Commits con archivos', globalSummary.commitsWithFiles],\n  ['Archivos totales', globalSummary.filesTotal],\n  ['SIS primarios', globalSummary.primarySis],\n  ['SIS relacionados', globalSummary.relatedSis],\n  ['REC', globalSummary.recs],\n  ['SIS con comentarios', globalSummary.sisWithComments]\n].filter((entry) => entry[1] !== undefined && entry[1] !== null)\n .map((entry) => `- ${entry[0]}: ${entry[1]}`)\n .join('\\n');\n\nconst commitsWithoutSisLines = commitsWithoutSis.length\n  ? commitsWithoutSis.slice(0, 120).map((commit) => {\n      const shortSha = commit?.sha ? String(commit.sha).slice(0, 10) : 'sin-sha';\n      const message = cleanInlineArtifacts(commit?.message || 'sin mensaje');\n      return `- ${shortSha}: ${message || 'Sin detalle de mensaje'}`;\n    }).join('\\n')\n  : '';\n\nconst sisWithoutRecLines = sisWithoutRec.length\n  ? sisWithoutRec.map((key) => `- ${key}`).join('\\n')\n  : '';\n\nlet finalReadme = `# Release ${releaseVersion}\\n`;\n\nif (summaryLines) {\n  finalReadme += `\\n## Resumen de trazabilidad\\n${summaryLines}\\n`;\n}\n\nif (mergedBatches) {\n  finalReadme += `\\n## Cambios detallados\\n${mergedBatches}\\n`;\n}\n\nif (commitsWithoutSisLines) {\n  finalReadme += `\\n## Commits sin SIS\\n${commitsWithoutSisLines}\\n`;\n}\n\nif (sisWithoutRecLines) {\n  finalReadme += `\\n## SIS sin REC\\n${sisWithoutRecLines}\\n`;\n}\n\nfinalReadme = finalReadme\n  .replace(/^Este documento fue generado.*$/gim, '')\n  .replace(/\\/\\*+/g, '')\n  .replace(/\\*+\\//g, '')\n  .replace(/\\n{3,}/g, '\\n\\n')\n  .trim();\n\nreturn [{\n  json: {\n    kind: 'technicalReadmeResult',\n    status: finalReadme ? 'generated' : 'emptyResponse',\n    technicalReadme: finalReadme || null,\n    output: finalReadme || null,\n    text: finalReadme || null,\n    response: finalReadme || null,\n    mergedMarkdown: mergedBatches || null,\n    batchSummaries: ordered.map((row) => ({\n      batchIndex: row.batchIndex,\n      batchCommitShas: row.batchCommitShas || [],\n      batchSisKeys: row.batchSisKeys || [],\n      status: row.status || 'unknown'\n    }))\n  }\n}];"
+      },
+      "id": "3649680f-6ad9-4b48-aa7d-664e21d244b9",
+      "name": "Assemble final README from commit batches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-haiku-4-5-20251001",
+          "mode": "list",
+          "cachedResultName": "Claude Haiku 4.5"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        816,
+        336
+      ],
+      "id": "ee6c8316-f7b9-4b7c-b331-5eee5355dd01",
+      "name": "Anthropic Chat Model1",
+      "credentials": {
+        "anthropicApi": {
+          "id": "0HAyY9p01eIXBYcb",
+          "name": "Anthropic account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When executed by another workflow": {
+      "main": [
+        [
+          {
+            "node": "Normalize batch pipeline input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize batch pipeline input": {
+      "main": [
+        [
+          {
+            "node": "Build technical commit batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build technical commit batches": {
+      "main": [
+        [
+          {
+            "node": "AI Agent tecnico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent tecnico": {
+      "main": [
+        [
+          {
+            "node": "Normalize technical batch response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize technical batch response": {
+      "main": [
+        [
+          {
+            "node": "Assemble final README from commit batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent tecnico",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "c8b59c23-195d-4ed3-98c7-8555a8cb7c90",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1b16b1df538ba12dc3f97edbb85caa7050d46c148134290feba80f8236c83db9"
+  },
+  "id": "BJDjPtADWQvKMCxq",
+  "tags": []
+}

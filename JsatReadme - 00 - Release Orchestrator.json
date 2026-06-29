@@ -1,0 +1,876 @@
+{
+  "name": "JsatReadme - 00 - Release Orchestrator",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "7af38aa0-5a60-49f9-887b-c22cd5c6c4d8",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1936,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const config = { ...$json };\nconst required = [\n  'repoOwner', 'repoName', 'currentVersion', 'currentRef',\n  'githubApiBase', 'jiraBaseUrl', 'jiraApiVersion'\n];\nfor (const key of required) {\n  const value = String(config[key] ?? '').trim();\n  if (!value || value.startsWith('REPLACE_WITH_')) {\n    throw new Error(`Configurar ${key} antes de ejecutar el orquestador.`);\n  }\n}\nreturn { json: config };"
+      },
+      "id": "8357760e-cba2-431e-887b-6e0fc9cecefb",
+      "name": "Validate orchestrator config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1456,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "v48M7SDihfxGBEJ9",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/v48M7SDihfxGBEJ9",
+          "cachedResultName": "JsatReadme - 01 - GitHub release collector"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "1d16610f-fd29-46dd-b07a-1d5dc0a92802",
+      "name": "Execute 01 - GitHub release collector",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -1184,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all()\n  .map((item) => item.json)\n  .filter((row) => row && typeof row === 'object');\n\nconst commitRecords = rows.filter((row) =>\n  row.kind === 'commitRecord' &&\n  row.github?.commit?.sha\n);\n\nconst context =\n  commitRecords[0]?.context ||\n  rows.find((row) => row.context)?.context ||\n  {};\n\nreturn [\n  {\n    json: {\n      kind: 'worklistControl',\n      stage: 'primarySis',\n      context,\n    },\n  },\n\n  ...commitRecords.map((record) => ({\n    json: record,\n  })),\n];"
+      },
+      "id": "e08f0004-5cba-4670-ac21-4769bcdffc11",
+      "name": "Prepare primary SIS worklist input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "ZNlSfrRMiE9CEDzs",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/ZNlSfrRMiE9CEDzs",
+          "cachedResultName": "JsatReadme - 03 - Release worklist builder"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "933ee6a6-d2b9-4393-950e-8cb22f54701b",
+      "name": "Execute 03 - Build primary SIS worklist",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -624,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.kind === 'issueSeed' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "bbdb0270-8e0b-4361-9fbe-0a639bfa6c49"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ed5f62b6-9f52-4e08-9727-17d9bed5be89",
+      "name": "IF - Primary SIS seeds exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "0OqZA028gKTha5RA",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/0OqZA028gKTha5RA",
+          "cachedResultName": "JsatReadme - 02 - Jira generic issue enricher"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "runOnceForAllItems",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "8699d9e0-904a-4240-98a5-02f07956a70a",
+      "name": "Execute 02 - Enrich primary SIS",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -64,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function safeRows(nodeName) {\n  try { return $(nodeName).all().map((item) => item.json); }\n  catch { return []; }\n}\nconst context = $('Validate orchestrator config').first().json;\nconst commits = safeRows('Execute 01 - GitHub release collector')\n  .filter((row) => row.kind === 'commitRecord');\nconst primary = safeRows('Execute 02 - Enrich primary SIS')\n  .filter((row) => row.kind === 'issueRecord' && row.role === 'primary');\n\nreturn [\n  ...commits.map((row) => ({ json: row })),\n  ...primary.map((row) => ({ json: row })),\n  { json: { kind: 'worklistControl', stage: 'relatedSis', context } },\n];"
+      },
+      "id": "0e7cbd13-2f56-4078-be86-45d096cbfc44",
+      "name": "Prepare related SIS worklist input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "ZNlSfrRMiE9CEDzs",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/ZNlSfrRMiE9CEDzs",
+          "cachedResultName": "JsatReadme - 03 - Release worklist builder"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "cd4b6919-3b83-409d-aeed-3a24d54ac6f3",
+      "name": "Execute 03 - Build related SIS worklist",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        512,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.kind === 'issueSeed' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "565bc020-fb9c-484f-941c-b2d21d2801d5"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "78375e92-8550-4d80-b9f7-8ab4a0a95828",
+      "name": "IF - Related SIS seeds exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        784,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "0OqZA028gKTha5RA",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/0OqZA028gKTha5RA",
+          "cachedResultName": "JsatReadme - 02 - Jira generic issue enricher"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "runOnceForAllItems",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "738a2bcc-b095-4497-9903-abe8cdaeb15f",
+      "name": "Execute 02 - Enrich related SIS",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1072,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function safeRows(nodeName) {\n  try { return $(nodeName).all().map((item) => item.json); }\n  catch { return []; }\n}\nconst context = $('Validate orchestrator config').first().json;\nconst commits = safeRows('Execute 01 - GitHub release collector').filter((row) => row.kind === 'commitRecord');\nconst primary = safeRows('Execute 02 - Enrich primary SIS').filter((row) => row.kind === 'issueRecord' && row.role === 'primary');\nconst related = safeRows('Execute 02 - Enrich related SIS').filter((row) => row.kind === 'issueRecord' && row.role === 'related');\n\nreturn [\n  ...commits.map((row) => ({ json: row })),\n  ...primary.map((row) => ({ json: row })),\n  ...related.map((row) => ({ json: row })),\n  { json: { kind: 'worklistControl', stage: 'rec', context } },\n];"
+      },
+      "id": "9aacfc5e-e233-4b5b-a76b-d418c669af99",
+      "name": "Prepare REC worklist input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "ZNlSfrRMiE9CEDzs",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/ZNlSfrRMiE9CEDzs",
+          "cachedResultName": "JsatReadme - 03 - Release worklist builder"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "runOnceForAllItems",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "7fa49cb6-13ac-49f1-9128-bf7c4ffc3969",
+      "name": "Execute 03 - Build REC worklist",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1632,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.kind === 'issueSeed' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "id": "66fb6e18-f924-4d5f-bceb-18aac67206fb"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "42006d2a-3b92-4001-864f-0c44123e0525",
+      "name": "IF - REC seeds exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "0OqZA028gKTha5RA",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/0OqZA028gKTha5RA",
+          "cachedResultName": "JsatReadme - 02 - Jira generic issue enricher"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "runOnceForAllItems",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "bb2485ad-7bbf-4996-81a0-6f77cdc5e7cd",
+      "name": "Execute 02 - Enrich REC",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2192,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function safeRows(nodeName) {\n  try { return $(nodeName).all().map((item) => item.json); }\n  catch { return []; }\n}\nconst context = $('Validate orchestrator config').first().json;\nconst records = [\n  ...safeRows('Execute 01 - GitHub release collector').filter((row) => row.kind === 'commitRecord'),\n  ...safeRows('Execute 02 - Enrich primary SIS').filter((row) => row.kind === 'issueRecord' && row.role === 'primary'),\n  ...safeRows('Execute 02 - Enrich related SIS').filter((row) => row.kind === 'issueRecord' && row.role === 'related'),\n  ...safeRows('Execute 02 - Enrich REC').filter((row) => row.kind === 'issueRecord' && row.role === 'rec'),\n];\n\nreturn [\n  ...records.map((row) => ({ json: row })),\n  { json: { kind: 'releaseControl', context } },\n];"
+      },
+      "id": "ccb8f743-2a6f-46fd-8227-2788b3b2bef5",
+      "name": "Prepare evidence assembler input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "dJ6fgwfxnJofzkj8",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/dJ6fgwfxnJofzkj8",
+          "cachedResultName": "JsatReadme - 04 - Release Evidence Assembler (detailed)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "4b1ae92c-c6ef-4a94-b1d0-93452e1c8b64",
+      "name": "Execute 04 - Assemble release evidence",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2752,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "repoOwner",
+              "value": "sistemas-telpin"
+            },
+            {
+              "name": "repoName",
+              "value": "jsat"
+            },
+            {
+              "name": "currentVersion",
+              "value": "1.2.28"
+            },
+            {
+              "name": "currentRef",
+              "value": "1.2.28"
+            },
+            {
+              "name": "githubApiBase",
+              "value": "https://api.github.com"
+            },
+            {
+              "name": "jiraBaseUrl",
+              "value": "https://telpinsistemas.atlassian.net"
+            },
+            {
+              "name": "jiraApiVersion",
+              "value": "2"
+            },
+            {
+              "name": "previousTagOverride"
+            },
+            {
+              "name": "previousVersionOverride"
+            },
+            {
+              "name": "sisRegex",
+              "value": "\\bSIS-\\d+\\b"
+            },
+            {
+              "name": "recRegex",
+              "value": "\\bREC-\\d+\\b"
+            }
+          ],
+          "number": [
+            {
+              "name": "tagsPerPage",
+              "value": 100
+            },
+            {
+              "name": "jiraPageSize",
+              "value": 100
+            },
+            {
+              "name": "maxAiPayloadChars",
+              "value": 70000
+            },
+            {
+              "name": "maxStoredIssueDescriptionChars",
+              "value": 8000
+            },
+            {
+              "name": "maxStoredIssueComments",
+              "value": 12
+            },
+            {
+              "name": "maxStoredCommentChars",
+              "value": 1000
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "79af621a-dad1-4e8a-8ac2-bc8de360fdbb",
+      "name": "Release configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -1712,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "BJDjPtADWQvKMCxq",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/BJDjPtADWQvKMCxq",
+          "cachedResultName": "JsatReadme - 05 - README AI Generator"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "d2169f15-13b3-41b4-be85-ffacf7b6ba8d",
+      "name": "Execute - 05 - README AI Generator",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        3024,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "let technicalReadme = String(\n  $json.output ||\n  $json.text ||\n  $json.response ||\n  ''\n).trim();\n\nfor (let i = 0; i < 2; i++) {\n  const decoded = technicalReadme\n    .replace(/\\\\r\\\\n/g, '\\n')\n    .replace(/\\\\n/g, '\\n')\n    .replace(/\\\\\"/g, '\"')\n    .replace(/\\\\\\\\/g, '\\\\');\n\n  if (decoded === technicalReadme) {\n    break;\n  }\n\n  technicalReadme = decoded;\n}\n\ntechnicalReadme = technicalReadme\n  .replace(/\\r\\n/g, '\\n')\n  .replace(/\\n{4,}/g, '\\n\\n\\n')\n  .trim();\n\nreturn {\n  json: {\n    kind: 'technicalReadmeResult',\n    status: technicalReadme ? 'generated' : 'emptyResponse',\n    technicalReadme: technicalReadme || null,\n    raw: $json,\n  },\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3280,
+        272
+      ],
+      "id": "07df50d1-c4bc-4625-a16c-290b85ece6ed",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = { ...$json };\nconst technicalReadme = String(input.technicalReadme || '').trim();\n\nif (!technicalReadme) {\n  throw new Error('No README content available to save.');\n}\n\nconst releaseVersion = String(\n  input.raw?.release?.currentVersion ||\n  input.raw?.raw?.release?.currentVersion ||\n  input.release?.currentVersion ||\n  'unknown'\n).trim();\n\nconst readmeFileName = `README-release-${releaseVersion}`.replace(/[<>:\"/\\\\|?*]+/g, '-') + '.md';\nconst outputPath = `C:/Users/mateo-soto/Desktop/proyectos/JsatReadme/${readmeFileName}`;\n\nreturn {\n  json: {\n    ...input,\n    releaseVersion,\n    readmeFileName,\n    outputPath,\n  },\n  binary: {\n    data: {\n      data: Buffer.from(technicalReadme, 'utf8').toString('base64'),\n      mimeType: 'text/markdown',\n      fileName: readmeFileName,\n      fileExtension: 'md',\n    },\n  },\n};"
+      },
+      "id": "5f74567a-23f4-4c83-b72f-8d4de88e9391",
+      "name": "Prepare README file payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3536,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "fileName": "={{ $json.outputPath }}",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "id": "d7cf4b74-2ae7-4501-8c2c-5ebecfe7cab6",
+      "name": "Write README markdown file",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        3792,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  json: {\n    kind: 'savedReadmeResult',\n    status: 'saved',\n    outputPath: $json.outputPath,\n    readmeFileName: $json.readmeFileName,\n    releaseVersion: $json.releaseVersion,\n    technicalReadme: $json.technicalReadme,\n  },\n};"
+      },
+      "id": "ea0e51f6-4b12-4aa1-a16d-725bca3bca75",
+      "name": "Return saved README metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4048,
+        272
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Release configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate orchestrator config": {
+      "main": [
+        [
+          {
+            "node": "Execute 01 - GitHub release collector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute 01 - GitHub release collector": {
+      "main": [
+        [
+          {
+            "node": "Prepare primary SIS worklist input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare primary SIS worklist input": {
+      "main": [
+        [
+          {
+            "node": "Execute 03 - Build primary SIS worklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute 03 - Build primary SIS worklist": {
+      "main": [
+        [
+          {
+            "node": "IF - Primary SIS seeds exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Primary SIS seeds exist": {
+      "main": [
+        [
+          {
+            "node": "Execute 02 - Enrich primary SIS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare related SIS worklist input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute 02 - Enrich primary SIS": {
+      "main": [
+        [
+          {
+            "node": "Prepare related SIS worklist input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare related SIS worklist input": {
+      "main": [
+        [
+          {
+            "node": "Execute 03 - Build related SIS worklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute 03 - Build related SIS worklist": {
+      "main": [
+        [
+          {
+            "node": "IF - Related SIS seeds exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Related SIS seeds exist": {
+      "main": [
+        [
+          {
+            "node": "Execute 02 - Enrich related SIS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare REC worklist input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute 02 - Enrich related SIS": {
+      "main": [
+        [
+          {
+            "node": "Prepare REC worklist input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare REC worklist input": {
+      "main": [
+        [
+          {
+            "node": "Execute 03 - Build REC worklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute 03 - Build REC worklist": {
+      "main": [
+        [
+          {
+            "node": "IF - REC seeds exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - REC seeds exist": {
+      "main": [
+        [
+          {
+            "node": "Execute 02 - Enrich REC",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare evidence assembler input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute 02 - Enrich REC": {
+      "main": [
+        [
+          {
+            "node": "Prepare evidence assembler input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare evidence assembler input": {
+      "main": [
+        [
+          {
+            "node": "Execute 04 - Assemble release evidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release configuration": {
+      "main": [
+        [
+          {
+            "node": "Validate orchestrator config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute 04 - Assemble release evidence": {
+      "main": [
+        [
+          {
+            "node": "Execute - 05 - README AI Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute - 05 - README AI Generator": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Prepare README file payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare README file payload": {
+      "main": [
+        [
+          {
+            "node": "Write README markdown file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write README markdown file": {
+      "main": [
+        [
+          {
+            "node": "Return saved README metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "17a2b9cd-23ef-4b6d-94fe-1f998493835f",
+  "meta": {
+    "instanceId": "1b16b1df538ba12dc3f97edbb85caa7050d46c148134290feba80f8236c83db9"
+  },
+  "id": "ovnnFxGO5aquyNRJ",
+  "tags": []
+}

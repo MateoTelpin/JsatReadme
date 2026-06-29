@@ -1,0 +1,106 @@
+{
+  "name": "JsatReadme - 06 - Save README to file",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1b5a3b7a-55c6-4871-a0b3-6ed3cb608061",
+      "name": "When executed by another workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        32,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = { ...$json };\nconst technicalReadme = String(\n  input.technicalReadme ||\n  input.output ||\n  input.text ||\n  input.response ||\n  ''\n).trim();\n\nif (!technicalReadme) {\n  throw new Error('Missing technicalReadme/output/text/response to save as Markdown file.');\n}\n\nconst releaseVersion = String(\n  input.releaseVersion ||\n  input.release?.currentVersion ||\n  input.raw?.release?.currentVersion ||\n  input.raw?.raw?.release?.currentVersion ||\n  'unknown'\n).trim();\n\nconst baseDir = String(\n  input.outputDir ||\n  'C:/Users/mateo-soto/Desktop/proyectos/JsatReadme'\n).trim().replace(/\\\\/g, '/').replace(/\\/$/, '');\n\nconst readmeFileName = String(\n  input.readmeFileName ||\n  `README-release-${releaseVersion}.md`\n).trim().replace(/[<>:\"/\\\\|?*]+/g, '-');\n\nconst outputPath = `${baseDir}/${readmeFileName}`;\n\nreturn {\n  json: {\n    ...input,\n    kind: 'savedReadmeRequest',\n    releaseVersion,\n    readmeFileName,\n    outputDir: baseDir,\n    outputPath,\n    technicalReadme,\n  },\n  binary: {\n    data: {\n      data: Buffer.from(technicalReadme, 'utf8').toString('base64'),\n      mimeType: 'text/markdown',\n      fileName: readmeFileName,\n      fileExtension: 'md',\n    },\n  },\n};"
+      },
+      "id": "e2462aa1-ecad-48e2-b269-e8acd2337b6c",
+      "name": "Prepare README file payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "fileName": "={{ $json.outputPath }}",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "id": "918b0f16-f912-4e47-ae5c-f4b871e04d75",
+      "name": "Write README markdown file",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        576,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return {\n  json: {\n    kind: 'savedReadmeResult',\n    status: 'saved',\n    outputPath: $json.outputPath,\n    readmeFileName: $json.readmeFileName,\n    releaseVersion: $json.releaseVersion,\n    technicalReadme: $json.technicalReadme,\n  },\n};"
+      },
+      "id": "f1a9e7f6-1fb9-4dd2-8d06-c038973dd5a1",
+      "name": "Return saved README metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        160
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When executed by another workflow": {
+      "main": [
+        [
+          {
+            "node": "Prepare README file payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare README file payload": {
+      "main": [
+        [
+          {
+            "node": "Write README markdown file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write README markdown file": {
+      "main": [
+        [
+          {
+            "node": "Return saved README metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "d4c1aeea-57b7-48c0-b01a-fcfc41757e64",
+  "meta": {
+    "instanceId": "1b16b1df538ba12dc3f97edbb85caa7050d46c148134290feba80f8236c83db9"
+  },
+  "id": "saveReadmeWorkflow06",
+  "tags": []
+}
