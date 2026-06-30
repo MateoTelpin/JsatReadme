@@ -1,0 +1,153 @@
+{
+  "name": "JsatReadme - 07 - Generador de HTML",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "readme-version-jsat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        5440,
+        1344
+      ],
+      "id": "d9f3a37e-e50c-41ee-bd6b-a6b3ca619454",
+      "name": "Webhook",
+      "webhookId": "0423e8a0-fee4-4b0d-83ab-73a4aeba5cec"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "={{ $json.params?.version || $json.query?.version || $json.body?.version || $json.version || \"\" }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        5712,
+        1344
+      ],
+      "id": "5b2561d1-8f49-4828-ae77-e4ebb858a437",
+      "name": "Get release version from Redis",
+      "credentials": {
+        "redis": {
+          "id": "sn7EhGxAmdAlfa2G",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const redis = $json;\nconst request = $('Webhook').first().json;\n\nconst requestedVersion =\n  request.params?.version ||\n  request.query?.version ||\n  request.body?.version ||\n  request.version ||\n  null;\n\nconst rawValue =\n  redis.value ??\n  redis.propertyName ??\n  redis.data ??\n  redis.message ??\n  redis.redisValue ??\n  redis.technicalReadme ??\n  redis.content ??\n  redis.result ??\n  null;\n\nlet parsed = null;\n\nif (typeof rawValue === 'string') {\n  try {\n    parsed = JSON.parse(rawValue);\n  } catch {\n    parsed = null;\n  }\n} else if (rawValue && typeof rawValue === 'object') {\n  parsed = rawValue;\n}\n\nconst technicalReadme =\n  parsed?.technicalReadme ??\n  (rawValue === null || rawValue === undefined ? null : String(rawValue));\n\nreturn {\n  json: {\n    ok: Boolean(technicalReadme),\n    requestedVersion: requestedVersion ? String(requestedVersion) : null,\n    releaseVersion: String(\n      parsed?.releaseVersion ||\n      requestedVersion ||\n      'sin-version'\n    ),\n    generatedAt: parsed?.generatedAt || null,\n    technicalReadme,\n  },\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5984,
+        1344
+      ],
+      "id": "c61d34fe-6755-4b11-948e-348e5e920102",
+      "name": "Normalize Redis release"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const {\n  ok,\n  requestedVersion,\n  releaseVersion,\n  generatedAt,\n  technicalReadme,\n} = $json;\n\nfunction escapeHtml(value) {\n  return String(value || '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;')\n    .replace(/'/g, '&#39;');\n}\n\nfunction formatDisplayDate(value) {\n  if (!value) return null;\n\n  const date = new Date(String(value));\n\n  if (Number.isNaN(date.getTime())) {\n    return String(value);\n  }\n\n  return new Intl.DateTimeFormat('es-AR', {\n    day: '2-digit',\n    month: '2-digit',\n    year: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit',\n    second: '2-digit',\n    hour12: false,\n    timeZone: 'America/Argentina/Buenos_Aires',\n  }).format(date);\n}\n\nconst title = 'Release JSAT ' + releaseVersion;\nconst subtitle = generatedAt\n  ? 'Generado el ' + formatDisplayDate(generatedAt)\n  : 'README recuperado desde Redis';\n\nconst markdownLiteral = JSON.stringify(String(technicalReadme || ''))\n  .replace(/</g, '\\\\u003C')\n  .replace(/>/g, '\\\\u003E')\n  .replace(/&/g, '\\\\u0026');\n\nconst html = ok\n  ? `<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>${escapeHtml(title)}</title>\n\n  <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n  <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n  <link href=\"https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap\" rel=\"stylesheet\">\n  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.0/github-markdown.min.css\">\n  <script src=\"https://cdn.jsdelivr.net/npm/marked/marked.min.js\"></script>\n\n  <style>\n    :root {\n      --page-bg: #edf4fc;\n      --surface: #ffffff;\n      --surface-soft: #f8fafc;\n      --text: #0f172a;\n      --muted: #64748b;\n      --border: #dbe3ee;\n      --accent: #1d4ed8;\n      --accent-soft: #dbeafe;\n    }\n\n    * { box-sizing: border-box; }\n\n    body {\n      max-width: 1180px;\n      min-width: 280px;\n      margin: 0 auto;\n      padding: 32px 24px;\n      background:\n        radial-gradient(circle at top right, rgba(37, 99, 235, .10), transparent 32%),\n        var(--page-bg);\n      color: var(--text);\n      font-family: Roboto, Arial, sans-serif;\n    }\n\n    .shell {\n      overflow: visible;\n      border: 1px solid var(--border);\n      border-radius: 18px;\n      background: var(--surface);\n      box-shadow: 0 16px 42px rgba(15, 23, 42, .10);\n    }\n\n    .hero {\n      position: sticky;\n      top: 0;\n      z-index: 20;\n      overflow: hidden;\n      padding: 24px 32px 22px;\n      border-radius: 17px 17px 0 0;\n      background: linear-gradient(115deg, #0f172a 0%, #172554 52%, #1e40af 100%);\n      color: #fff;\n      box-shadow: 0 8px 18px rgba(15, 23, 42, .18);\n    }\n\n    .hero::after {\n      position: absolute;\n      top: -120px;\n      right: -80px;\n      width: 310px;\n      height: 310px;\n      border: 1px solid rgba(255,255,255,.15);\n      border-radius: 50%;\n      content: \"\";\n      box-shadow: 0 0 0 38px rgba(255,255,255,.035), 0 0 0 76px rgba(255,255,255,.025);\n    }\n\n    .hero-content { position: relative; z-index: 1; }\n\n    .hero h1 {\n      margin: 0;\n      color: #fff;\n      font-size: 30px;\n      font-weight: 800;\n      letter-spacing: -.025em;\n      line-height: 1.15;\n    }\n\n    .hero p {\n      margin: 10px 0 0;\n      color: rgba(255,255,255,.80);\n      font-size: 14px;\n    }\n\n    .markdown-body {\n      max-width: none;\n      margin: 0;\n      padding: 32px;\n      background: var(--surface);\n      color: var(--text) !important;\n      font-family: Roboto, Arial, sans-serif;\n      font-size: 15px;\n      line-height: 1.65;\n    }\n\n    .markdown-body,\n    .markdown-body p,\n    .markdown-body li,\n    .markdown-body ul,\n    .markdown-body ol,\n    .markdown-body strong,\n    .markdown-body em,\n    .markdown-body span,\n    .markdown-body code { color: var(--text) !important; }\n\n    .markdown-body h1,\n    .markdown-body h2,\n    .markdown-body h3,\n    .markdown-body h4,\n    .markdown-body h5,\n    .markdown-body h6 {\n      color: #0b1220 !important;\n      font-family: Roboto, Arial, sans-serif;\n    }\n\n    .markdown-body h1 {\n      padding-bottom: 12px;\n      border-bottom: 1px solid var(--border);\n      font-size: 25px;\n    }\n\n    .markdown-body h2 {\n      margin-top: 34px;\n      padding-bottom: 9px;\n      border-bottom: 1px solid #e2e8f0;\n      font-size: 21px;\n    }\n\n    .markdown-body h3 { font-size: 17px; }\n    .markdown-body a { color: #1d4ed8 !important; }\n    .markdown-body hr { border-color: var(--border) !important; }\n    .markdown-body pre, .markdown-body code { background: #f8fafc !important; }\n\n    .search-bar {\n      display: flex;\n      align-items: center;\n      gap: 10px;\n      max-width: 620px;\n      margin-top: 16px;\n      padding: 10px 12px;\n      border: 1px solid rgba(191, 219, 254, .88);\n      border-radius: 10px;\n      background: rgba(255, 255, 255, .97);\n      box-shadow: 0 4px 12px rgba(15, 23, 42, .12);\n    }\n\n    .search-bar[hidden] {\n      display: none;\n    }\n\n    .search-icon {\n      color: var(--accent);\n      font-size: 18px;\n      font-weight: 800;\n      line-height: 1;\n    }\n\n    .search-input {\n      width: 100%;\n      min-width: 0;\n      border: 0;\n      outline: 0;\n      background: transparent;\n      color: var(--text);\n      font: 500 14px/1.4 Roboto, Arial, sans-serif;\n    }\n\n    .search-input::placeholder { color: #64748b; }\n\n    .search-count {\n      display: none;\n      flex: 0 0 auto;\n      color: #475569;\n      font-size: 12px;\n      font-weight: 700;\n      white-space: nowrap;\n    }\n\n    .detail-section { margin-top: 24px; }\n    .detail-section > :first-child { margin-top: 0; }\n\n    .ticket-list {\n      display: grid;\n      gap: 12px;\n      margin-top: 16px;\n    }\n\n    .ticket-card {\n      overflow: hidden;\n      border: 1px solid var(--border);\n      border-radius: 13px;\n      background: var(--surface);\n      box-shadow: 0 4px 14px rgba(15,23,42,.045);\n    }\n\n    .ticket-card > summary {\n      display: flex;\n      align-items: center;\n      gap: 10px;\n      min-height: 56px;\n      padding: 12px 15px;\n      cursor: pointer;\n      list-style: none;\n      user-select: none;\n    }\n\n    .ticket-card > summary::-webkit-details-marker { display: none; }\n\n    .ticket-card > summary::after {\n      flex: 0 0 auto;\n      width: 9px;\n      height: 9px;\n      margin: 0 5px 4px auto;\n      border-right: 2px solid var(--accent);\n      border-bottom: 2px solid var(--accent);\n      background: transparent;\n      content: \"\";\n      transform: rotate(45deg);\n      transition: transform .18s ease;\n    }\n\n    .ticket-card[open] > summary {\n      border-bottom: 1px solid var(--border);\n    }\n\n    .ticket-card[open] > summary::after {\n      margin-top: 5px;\n      margin-bottom: 0;\n      transform: rotate(225deg);\n    }\n\n    .ticket-card.sis-card > summary,\n    .ticket-card.rec-card > summary {\n      background: linear-gradient(90deg, #eff6ff, #fff);\n    }\n\n    .ticket-code {\n      flex: 0 0 auto;\n      padding: 5px 9px;\n      border-radius: 999px;\n      font-size: 12px;\n      font-weight: 800;\n      letter-spacing: .02em;\n      line-height: 1;\n    }\n\n    .sis-card .ticket-code,\n    .rec-card .ticket-code {\n      background: var(--accent-soft);\n      color: var(--accent) !important;\n    }\n\n    .ticket-title {\n      min-width: 0;\n      color: #1e293b !important;\n      font-size: 14px;\n      font-weight: 700;\n    }\n\n    .ticket-content {\n      padding: 18px;\n      background: #fff;\n    }\n\n    .ticket-content > :first-child { margin-top: 0; }\n    .ticket-content > :last-child { margin-bottom: 0; }\n\n    .empty-filter {\n      display: none;\n      margin-top: 14px;\n      padding: 16px;\n      border: 1px dashed #cbd5e1;\n      border-radius: 10px;\n      color: var(--muted);\n      background: var(--surface-soft);\n      font-size: 14px;\n    }\n\n    @media (max-width: 767px) {\n      body { padding: 12px; }\n      .hero { padding: 18px 20px; }\n      .hero h1 { font-size: 25px; }\n      .search-bar { margin-top: 14px; }\n      .markdown-body { padding: 22px 18px; }\n      .ticket-card > summary { min-height: 52px; padding: 11px 12px; }\n      .ticket-content { padding: 14px; }\n    }\n  </style>\n</head>\n<body>\n  <main class=\"shell\">\n    <header class=\"hero\">\n      <div class=\"hero-content\">\n        <h1>${escapeHtml(title)}</h1>\n        <p>${escapeHtml(subtitle)}</p>\n\n        <div id=\"header-search\" class=\"search-bar\" hidden>\n          <span class=\"search-icon\" aria-hidden=\"true\">⌕</span>\n          <input\n            id=\"ticket-search\"\n            class=\"search-input\"\n            type=\"search\"\n            autocomplete=\"off\"\n            placeholder=\"Buscar por SIS, REC, título o contenido\"\n          >\n          <span id=\"search-count\" class=\"search-count\"></span>\n        </div>\n      </div>\n    </header>\n\n    <article id=\"content\" class=\"markdown-body\"></article>\n  </main>\n\n  <script>\n    const markdown = ${markdownLiteral};\n\n    function getHeadingLevel(element) {\n      if (!element || !/^H[1-6]$/.test(element.tagName)) {\n        return null;\n      }\n\n      return Number(element.tagName.substring(1));\n    }\n\n    function isHeading(element) {\n      return Boolean(\n        element &&\n        element.nodeType === Node.ELEMENT_NODE &&\n        /^H[1-6]$/.test(element.tagName)\n      );\n    }\n\n    function getSectionType(element) {\n      if (!isHeading(element)) {\n        return null;\n      }\n\n      const text = String(element.textContent || '').trim();\n      const match = text.match(/Cambios detallados por\\\\s+(SIS|REC)\\\\b/i);\n\n      return match ? match[1].toUpperCase() : null;\n    }\n\n    function getTicket(element, expectedType) {\n      if (!isHeading(element)) {\n        return null;\n      }\n\n      const text = String(element.textContent || '').trim();\n      const expression = expectedType === 'SIS'\n        ? /\\\\b(SIS-\\\\d+)\\\\b/i\n        : /\\\\b(REC-\\\\d+)\\\\b/i;\n\n      const match = text.match(expression);\n\n      if (!match) {\n        return null;\n      }\n\n      return {\n        code: match[1].toUpperCase(),\n        title: text\n          .replace(expression, '')\n          .replace(/^[\\\\s:—–-]+/, '')\n          .replace(/[\\\\s:—–-]+$/, '')\n          .trim(),\n      };\n    }\n\n    function findSectionEnd(sectionHeading, sectionType) {\n      const sectionLevel = getHeadingLevel(sectionHeading);\n      let node = sectionHeading.nextElementSibling;\n\n      while (node) {\n        if (isHeading(node)) {\n          const nextSectionType = getSectionType(node);\n          const ticket = getTicket(node, sectionType);\n          const nodeLevel = getHeadingLevel(node);\n\n          if (nextSectionType) {\n            return node;\n          }\n\n          /*\n           * Un heading del mismo nivel o superior cierra la sección,\n           * salvo que sea otro ticket del tipo esperado.\n           */\n          if (!ticket && nodeLevel <= sectionLevel) {\n            return node;\n          }\n        }\n\n        node = node.nextElementSibling;\n      }\n\n      return null;\n    }\n\n    function createTicketCard(heading, ticket, sectionType, stopNode) {\n      const card = document.createElement('details');\n      const summary = document.createElement('summary');\n      const code = document.createElement('span');\n      const title = document.createElement('span');\n      const body = document.createElement('div');\n\n      card.className = 'ticket-card ' + sectionType.toLowerCase() + '-card';\n      code.className = 'ticket-code';\n      title.className = 'ticket-title';\n      body.className = 'ticket-content';\n\n      code.textContent = ticket.code;\n      title.textContent = ticket.title || (\n        sectionType === 'REC'\n          ? 'Detalle del requerimiento'\n          : 'Detalle técnico'\n      );\n\n      summary.appendChild(code);\n      summary.appendChild(title);\n      card.appendChild(summary);\n      card.appendChild(body);\n\n      const nodesToMove = [];\n      let node = heading.nextSibling;\n\n      while (node && node !== stopNode) {\n        const nextNode = node.nextSibling;\n\n        if (isHeading(node) && getTicket(node, sectionType)) {\n          break;\n        }\n\n        nodesToMove.push(node);\n        node = nextNode;\n      }\n\n      heading.replaceWith(card);\n\n      nodesToMove.forEach(function(item) {\n        body.appendChild(item);\n      });\n\n      card.dataset.search = [\n        ticket.code,\n        ticket.title,\n        body.textContent,\n      ].join(' ').toLowerCase();\n    }\n\n    function enhanceDetailSection(sectionHeading, sectionType) {\n      const sectionEnd = findSectionEnd(sectionHeading, sectionType);\n      const tickets = [];\n      let node = sectionHeading.nextElementSibling;\n\n      while (node && node !== sectionEnd) {\n        const ticket = getTicket(node, sectionType);\n\n        if (ticket) {\n          tickets.push({\n            heading: node,\n            ticket: ticket,\n          });\n        }\n\n        node = node.nextElementSibling;\n      }\n\n      tickets.forEach(function(item, index) {\n        const nextTicket = tickets[index + 1];\n        const stopNode = nextTicket ? nextTicket.heading : sectionEnd;\n\n        createTicketCard(\n          item.heading,\n          item.ticket,\n          sectionType,\n          stopNode\n        );\n      });\n    }\n\n    function addSearch(content) {\n      const cards = Array.from(content.querySelectorAll('.ticket-card'));\n      const search = document.getElementById('header-search');\n\n      if (!cards.length) {\n        search.hidden = true;\n        return;\n      }\n\n      search.hidden = false;\n\n      const empty = document.createElement('div');\n      empty.className = 'empty-filter';\n      empty.id = 'empty-filter';\n      empty.textContent = 'No hay SIS ni REC que coincidan con la búsqueda.';\n      content.insertBefore(empty, content.firstChild);\n\n      const input = document.getElementById('ticket-search');\n      const count = document.getElementById('search-count');\n\n      input.addEventListener('input', function() {\n        const query = String(input.value || '').trim().toLowerCase();\n        let visible = 0;\n\n        cards.forEach(function(card) {\n          const matches = !query || card.dataset.search.indexOf(query) !== -1;\n          card.style.display = matches ? '' : 'none';\n\n          if (matches) {\n            visible += 1;\n          }\n        });\n\n        empty.style.display = query && visible === 0 ? 'block' : 'none';\n        count.style.display = query ? 'inline' : 'none';\n        count.textContent = visible + ' resultado' + (visible === 1 ? '' : 's');\n      });\n    }\n    const content = document.getElementById('content');\n\n    if (typeof marked === 'undefined') {\n      content.innerHTML = '<p>No se pudo cargar el renderizador de Markdown.</p>';\n    } else {\n      content.innerHTML = marked.parse(markdown);\n\n      /*\n       * Solo se crean cards dentro de “Cambios detallados por SIS”\n       * y “Cambios detallados por REC”. Así nunca se mezclan ni se\n       * anidan entre sí.\n       */\n      const detailSections = Array.from(\n        content.querySelectorAll('h1, h2, h3, h4, h5, h6')\n      );\n\n      detailSections.forEach(function(heading) {\n        const type = getSectionType(heading);\n\n        if (type) {\n          enhanceDetailSection(heading, type);\n        }\n      });\n\n      addSearch(content);\n    }\n  </script>\n</body>\n</html>`\n  : `<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Release no encontrada</title>\n  <style>\n    body { margin: 0; padding: 32px; background: #eef4fc; color: #0f172a; font: 16px Roboto, Arial, sans-serif; }\n    .card { max-width: 720px; margin: 0 auto; padding: 28px; border: 1px solid #dbe3ee; border-radius: 16px; background: #fff; box-shadow: 0 12px 30px rgba(15,23,42,.08); }\n    h1 { margin-top: 0; }\n    p { color: #475569; }\n    code { padding: 3px 7px; border-radius: 6px; background: #eff6ff; color: #1d4ed8; }\n  </style>\n</head>\n<body>\n  <div class=\"card\">\n    <h1>Release no encontrada</h1>\n    <p>No se encontró contenido en Redis para la versión <code>${escapeHtml(releaseVersion)}</code>.</p>\n  </div>\n</body>\n</html>`;\n\nreturn {\n  json: {\n    ok: Boolean(ok),\n    requestedVersion,\n    releaseVersion,\n    generatedAt,\n    technicalReadme,\n    html,\n  },\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6240,
+        1344
+      ],
+      "id": "19b39651-3907-49c1-b706-8a989da383a7",
+      "name": "Render README HTML"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseCode": "={{ $json.ok ? 200 : 404 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        6512,
+        1344
+      ],
+      "id": "63e77b4d-05f1-4c3a-8368-cf236af2b561",
+      "name": "Respond with HTML"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get release version from Redis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get release version from Redis": {
+      "main": [
+        [
+          {
+            "node": "Normalize Redis release",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Redis release": {
+      "main": [
+        [
+          {
+            "node": "Render README HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render README HTML": {
+      "main": [
+        [
+          {
+            "node": "Respond with HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e2a42832-b239-48e6-bb51-2cb07ea24fad",
+  "meta": {
+    "instanceId": "1b16b1df538ba12dc3f97edbb85caa7050d46c148134290feba80f8236c83db9"
+  },
+  "id": "vxNtmsflKn1PB7Tb",
+  "tags": []
+}

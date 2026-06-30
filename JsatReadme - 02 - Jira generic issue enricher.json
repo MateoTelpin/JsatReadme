@@ -2,30 +2,14 @@
   "name": "JsatReadme - 02 - Jira generic issue enricher",
   "nodes": [
     {
-      "parameters": {
-        "content": "# Jira generic issue enricher\nDado un commit, se busca el SIS y/o el REC, de cada uno se obtienen sus datos correspondientes",
-        "height": 106,
-        "width": 694,
-        "color": 5
-      },
-      "id": "95af51a1-6647-4481-acc5-0d9711bc4084",
-      "name": "NOTE - 190",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        160,
-        -400
-      ]
-    },
-    {
       "parameters": {},
-      "id": "9d282ca0-5501-4c54-ab7d-91ce4211d039",
+      "id": "9076200c-ace6-4546-8f7b-0c25ccd0a487",
       "name": "When executed by another workflow",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1,
       "position": [
-        -192,
-        32
+        13136,
+        7520
       ]
     },
     {
@@ -33,18 +17,18 @@
         "mode": "runOnceForEachItem",
         "jsCode": "const seed = { ...$json };\nconst issueKey = String(seed.issueKey || '').trim().toUpperCase();\nif (!/^(SIS|REC)-\\d+$/.test(issueKey)) throw new Error(`issueKey inválido: ${issueKey || '(vacío)'}`);\nfor (const required of ['jiraBaseUrl', 'jiraApiVersion']) {\n  if (!String(seed[required] || seed.context?.[required] || '').trim()) throw new Error(`Falta ${required} para ${issueKey}`);\n}\nconst context = { ...(seed.context || {}), ...seed };\nreturn { json: { ...seed, issueKey, jiraBaseUrl: context.jiraBaseUrl, jiraApiVersion: context.jiraApiVersion, jiraPageSize: Math.min(Math.max(Number(context.jiraPageSize || 100),1),100) } };"
       },
-      "id": "268d47cf-9ca4-4d6c-9f62-e1731acfb91b",
+      "id": "77ce3d72-263e-452e-921e-692ee4f34770",
       "name": "Validate issue seeds",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        32,
-        32
+        13360,
+        7520
       ]
     },
     {
       "parameters": {
-        "url": "={{ $json.jiraBaseUrl + '/rest/api/' + $json.jiraApiVersion + '/issue/' + encodeURIComponent($json.issueKey) + '?fields=summary,issuetype,status,resolution,priority,assignee,reporter,labels,components,fixVersions,versions,created,updated,description,issuelinks&expand=renderedFields' }}",
+        "url": "={{ $json.jiraBaseUrl + '/rest/api/' + $json.jiraApiVersion + '/issue/' + encodeURIComponent($json.issueKey) + '?fields=*all&expand=renderedFields,names' }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "jiraSoftwareCloudApi",
         "sendQuery": true,
@@ -64,13 +48,13 @@
           "timeout": 120000
         }
       },
-      "id": "e9242a1b-b020-44bf-8cce-c4fae76fd3d6",
+      "id": "3a78c420-4570-48a5-ac7f-5a6efa3e6f6d",
       "name": "Jira - Get issue",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [
-        320,
-        -224
+        13648,
+        7264
       ],
       "retryOnFail": true,
       "maxTries": 3,
@@ -94,6 +78,10 @@
             {
               "name": "maxResults",
               "value": "={{ $json.jiraPageSize }}"
+            },
+            {
+              "name": "expand",
+              "value": "renderedBody"
             }
           ]
         },
@@ -125,13 +113,13 @@
           "timeout": 120000
         }
       },
-      "id": "d65030f3-7a66-48b6-a4b8-532b16b96c5e",
+      "id": "89f8c22c-0629-4154-8ca8-4dca24895ad1",
       "name": "Jira - Get comments",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [
-        320,
-        -48
+        13648,
+        7440
       ],
       "retryOnFail": true,
       "maxTries": 3,
@@ -186,13 +174,13 @@
           "timeout": 120000
         }
       },
-      "id": "bff6644f-98e2-422d-b040-bb0c3f39072d",
+      "id": "0c4e2a3e-9bcc-488e-b989-825b5f34d46d",
       "name": "Jira - Get worklogs",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [
-        320,
-        144
+        13648,
+        7632
       ],
       "retryOnFail": true,
       "maxTries": 3,
@@ -247,13 +235,13 @@
           "timeout": 120000
         }
       },
-      "id": "f3badd4c-d826-496b-bbac-db9d7ccb0d70",
+      "id": "10641c2e-d9f3-47f0-9f71-f6c5d49f2e69",
       "name": "Jira - Get changelog",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
       "position": [
-        320,
-        320
+        13648,
+        7808
       ],
       "retryOnFail": true,
       "maxTries": 3,
@@ -271,13 +259,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "const seed = $('Validate issue seeds').item.json;\nreturn { json: { recordType: 'issue', issueKey: seed.issueKey, seed, payload: $json } };"
       },
-      "id": "07de5d41-2d53-460e-99a9-9a5875609e8e",
+      "id": "9f4c299e-e24a-4cfb-bc45-054c538afde3",
       "name": "Wrap issue response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        576,
-        -224
+        13904,
+        7264
       ]
     },
     {
@@ -285,13 +273,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "const seed = $('Validate issue seeds').item.json;\nreturn { json: { recordType: 'commentsPage', issueKey: seed.issueKey, seed, payload: $json } };"
       },
-      "id": "5d3c4858-5042-4e3a-ac11-40168360f3bf",
+      "id": "f7f9c1e3-145e-4209-a339-92ef8ac42593",
       "name": "Wrap comments pages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        576,
-        -48
+        13904,
+        7440
       ]
     },
     {
@@ -299,13 +287,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "const seed = $('Validate issue seeds').item.json;\nreturn { json: { recordType: 'worklogsPage', issueKey: seed.issueKey, seed, payload: $json } };"
       },
-      "id": "dd684a32-5bea-49cd-9a5e-e847312ce3f0",
+      "id": "229b370b-945b-48de-9856-2dfc22b4e715",
       "name": "Wrap worklogs pages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        576,
-        144
+        13904,
+        7632
       ]
     },
     {
@@ -313,43 +301,1801 @@
         "mode": "runOnceForEachItem",
         "jsCode": "const seed = $('Validate issue seeds').item.json;\nreturn { json: { recordType: 'changelogPage', issueKey: seed.issueKey, seed, payload: $json } };"
       },
-      "id": "837622f1-ce5e-4cb2-b8d5-5668ba309ace",
+      "id": "a4e6e3a8-9c54-4c3d-ba07-764b1059e296",
       "name": "Wrap changelog pages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        576,
-        320
+        13904,
+        7808
       ]
     },
     {
       "parameters": {
         "numberInputs": 4
       },
-      "id": "d8348238-9c5d-4951-9f24-b54ee431fd9e",
+      "id": "3a681c00-bec7-4dd9-9165-54b37af650b3",
       "name": "Merge issue raw responses",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        832,
-        32
+        14160,
+        7520
       ]
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all().map((item) => item.json).filter((row) => row.issueKey);\nconst byKey = new Map();\nfor (const row of rows) {\n  if (!byKey.has(row.issueKey)) byKey.set(row.issueKey, []);\n  byKey.get(row.issueKey).push(row);\n}\nfunction allText(value, out = []) {\n  if (value == null) return out;\n  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') { out.push(String(value)); return out; }\n  if (Array.isArray(value)) { value.forEach((v) => allText(v, out)); return out; }\n  if (typeof value === 'object') Object.values(value).forEach((v) => allText(v, out));\n  return out;\n}\nfunction refs(value, prefix) {\n  const r = new RegExp(`\\\\b${prefix}[\\\\s_-]*(\\\\d+)\\\\b`, 'gi'); const keys = new Set();\n  for (const text of allText(value)) for (const m of text.matchAll(r)) keys.add(`${prefix}-${m[1]}`);\n  return [...keys];\n}\nfunction pageItems(pages, candidates) {\n  const result=[]; for (const page of pages) { const source = page?.values || candidates.map((k)=>page?.[k]).find(Array.isArray) || []; result.push(...source); }\n  const seen = new Set(); return result.filter((v)=>{ const key=v?.id || JSON.stringify(v); if(seen.has(key)) return false; seen.add(key); return true; });\n}\nfunction cleanDescription(text) {\n  return String(text || '')\n    .replace(/\\bSubtareas\\b[\\s\\S]*$/i, '')\n    .replace(/\\bActividades vinculadas\\b[\\s\\S]*$/i, '')\n    .replace(/\\bAñadir subtarea\\b/gi, '')\n    .replace(/\\bAñadir actividad vinculada\\b/gi, '')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\nreturn [...byKey.entries()].map(([issueKey, group]) => {\n  const seed = group[0].seed || {};\n  const issue = group.find((r) => r.recordType === 'issue')?.payload || {};\n  const comments = pageItems(group.filter((r)=>r.recordType==='commentsPage').map((r)=>r.payload), ['comments']);\n  const worklogs = pageItems(group.filter((r)=>r.recordType==='worklogsPage').map((r)=>r.payload), ['worklogs']);\n  const changelog = pageItems(group.filter((r)=>r.recordType==='changelogPage').map((r)=>r.payload), ['histories']);\n  const fields = issue.fields || {};\n  const links = (fields.issuelinks || []).map((link) => {\n    const related = link.outwardIssue || link.inwardIssue; if (!related?.key) return null;\n    return { key: String(related.key).toUpperCase(), relation: link.type?.name || null, direction: link.outwardIssue ? 'outward' : 'inward', source: 'issueLink', summary: related.fields?.summary || null };\n  }).filter(Boolean);\n  const all = { fields, renderedFields: issue.renderedFields || {}, comments, worklogs, changelog };\n  const own = String(issueKey).toUpperCase();\n  const relatedSisKeys = [...new Set([...links.filter((l)=>/^SIS-\\d+$/.test(l.key)).map((l)=>l.key), ...refs(all,'SIS').filter((k)=>k!==own)])];\n  const recKeys = [...new Set([...links.filter((l)=>/^REC-\\d+$/.test(l.key)).map((l)=>l.key), ...refs(all,'REC')])];\n  const compactComments = comments.slice(-Math.max(0,Number(seed.maxStoredIssueComments || 12))).map((c)=>({id:c.id||null, created:c.created||null, author:c.author?.displayName||c.author?.name||null, body: allText(c.renderedBody || c.body).join(' ').replace(/\\s+/g,' ').slice(0,Number(seed.maxStoredCommentChars || 1000)) }));\n  const description = cleanDescription(allText(issue.renderedFields?.description || fields.description).join(' '));\n  const errors=group.filter((r)=>r.payload && !r.payload.fields && (r.payload.error || r.payload.message)).map((r)=>({source:r.recordType,message:r.payload.message||r.payload.error,statusCode:r.payload.statusCode||r.payload.code||null}));\n  return { json: {\n    kind:'issueRecord', role:seed.role || 'unknown', issueKey:own, context:seed.context || {},\n    originCommitShas:seed.originCommitShas || [], relatedFrom:seed.relatedFrom || [],\n    issue:{ key:own, browseUrl:`${seed.jiraBaseUrl}/browse/${own}`, fetchStatus:issue.fields?'retrieved':(errors.length?'failedOrMissing':'notRetrieved'),\n      normalized:{summary:fields.summary||null, issueType:fields.issuetype?.name||null,status:fields.status?.name||null,resolution:fields.resolution?.name||null,priority:fields.priority?.name||null,assignee:fields.assignee?.displayName||fields.assignee?.name||null,labels:fields.labels||[],components:(fields.components||[]).map((v)=>v.name).filter(Boolean),fixVersions:(fields.fixVersions||[]).map((v)=>v.name).filter(Boolean),description:description.slice(0,Number(seed.maxStoredIssueDescriptionChars || 8000)),descriptionText:description.slice(0,Number(seed.maxStoredIssueDescriptionChars || 8000)),descriptionTruncated:description.length>Number(seed.maxStoredIssueDescriptionChars || 8000)},\n      relationships:{linkedIssues:links,relatedSisKeys,recKeys}, evidence:{comments:compactComments,activityScanned:{comments:comments.length,worklogs:worklogs.length,changelog:changelog.length}} }, fetchErrors:errors\n  }};\n});"
+        "jsCode": "const rows = $input.all().map((item) => item.json).filter((row) => row.issueKey);\nconst byKey = new Map();\nfor (const row of rows) {\n  if (!byKey.has(row.issueKey)) byKey.set(row.issueKey, []);\n  byKey.get(row.issueKey).push(row);\n}\n\nfunction asArray(value) {\n  return Array.isArray(value) ? value : [];\n}\n\nfunction decodeHtmlEntities(text) {\n  return String(text || '')\n    .replace(/&nbsp;/gi, ' ')\n    .replace(/&amp;/gi, '&')\n    .replace(/&lt;/gi, '<')\n    .replace(/&gt;/gi, '>')\n    .replace(/&quot;/gi, '\"')\n    .replace(/&#39;/gi, \"'\")\n    .replace(/&#160;/gi, ' ')\n    .replace(/&#x27;/gi, \"'\")\n    .replace(/&#x2F;/gi, '/');\n}\n\nfunction stripHtml(text) {\n  return decodeHtmlEntities(String(text || ''))\n    .replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/gi, ' ')\n    .replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi, ' ')\n    .replace(/<br\\s*\\/?>/gi, '\\n')\n    .replace(/<\\/p>/gi, '\\n')\n    .replace(/<\\/div>/gi, '\\n')\n    .replace(/<\\/li>/gi, '\\n')\n    .replace(/<li\\b[^>]*>/gi, '- ')\n    .replace(/<[^>]+>/g, ' ');\n}\n\nfunction allText(value, out = []) {\n  if (value == null) return out;\n  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {\n    out.push(stripHtml(String(value)));\n    return out;\n  }\n  if (Array.isArray(value)) {\n    value.forEach((v) => allText(v, out));\n    return out;\n  }\n  if (typeof value === 'object') {\n    if (typeof value.text === 'string') out.push(stripHtml(value.text));\n    for (const [key, nested] of Object.entries(value)) {\n      if (key === 'text') continue;\n      allText(nested, out);\n    }\n  }\n  return out;\n}\n\nfunction plainText(value, max = 8000) {\n  const text = allText(value)\n    .join(' ')\n    .replace(/\\r/g, '')\n    .replace(/\\bSubtareas\\b[\\s\\S]*$/i, '')\n    .replace(/\\bActividades vinculadas\\b[\\s\\S]*$/i, '')\n    .replace(/\\bAnadir subtarea\\b/gi, '')\n    .replace(/\\bA?adir subtarea\\b/gi, '')\n    .replace(/\\bAnadir actividad vinculada\\b/gi, '')\n    .replace(/\\bA?adir actividad vinculada\\b/gi, '')\n    .replace(/[\\t ]+/g, ' ')\n    .replace(/\\n{3,}/g, '\\n\\n')\n    .replace(/ ?\\n ?/g, '\\n')\n    .trim();\n  if (!text) return null;\n  return text.length > max ? text.slice(0, max).trim() + '...' : text;\n}\n\nfunction actorName(value) {\n  if (!value) return null;\n  if (typeof value === 'string') return plainText(value, 300);\n  return plainText(\n    value.displayName || value.name || value.emailAddress || value.key || value.accountId || value.login || value.username || '',\n    300\n  );\n}\n\nfunction refs(value, prefix) {\n  const r = new RegExp('\\\\b' + prefix + '[\\\\s_-]*(\\\\d+)\\\\b', 'gi');\n  const keys = new Set();\n  for (const text of allText(value)) {\n    for (const match of text.matchAll(r)) keys.add(prefix + '-' + match[1]);\n  }\n  return [...keys];\n}\n\nfunction pageItems(pages, candidates) {\n  const result = [];\n  for (const page of pages) {\n    const source = page?.values || candidates.map((key) => page?.[key]).find(Array.isArray) || [];\n    result.push(...source);\n  }\n  const seen = new Set();\n  return result.filter((value) => {\n    const key = value?.id || JSON.stringify(value);\n    if (seen.has(key)) return false;\n    seen.add(key);\n    return true;\n  });\n}\n\nfunction normalizeFieldName(value) {\n  return String(value || '')\n    .normalize('NFD')\n    .replace(/[̀-ͯ]/g, '')\n    .toLowerCase()\n    .replace(/[^a-z0-9]+/g, ' ')\n    .trim();\n}\n\nfunction namedFieldText(issue, fieldName) {\n  const names = issue?.names || {};\n  const fields = issue?.fields || {};\n  const renderedFields = issue?.renderedFields || {};\n  const target = normalizeFieldName(fieldName);\n  const candidates = Object.entries(names).filter(([_, displayName]) => {\n    const current = normalizeFieldName(displayName);\n    return current === target || current.includes(target) || target.includes(current);\n  });\n  for (const [fieldKey] of candidates) {\n    const rendered = plainText(renderedFields[fieldKey], 12000);\n    if (rendered) return rendered;\n    const raw = plainText(fields[fieldKey], 12000);\n    if (raw) return raw;\n  }\n  return null;\n}\n\nreturn [...byKey.entries()].map(([issueKey, group]) => {\n  const seed = group[0].seed || {};\n  const issue = group.find((r) => r.recordType === 'issue')?.payload || {};\n  const fields = issue.fields || {};\n  const worklogs = pageItems(group.filter((r) => r.recordType === 'worklogsPage').map((r) => r.payload), ['worklogs']);\n  const changelog = pageItems(group.filter((r) => r.recordType === 'changelogPage').map((r) => r.payload), ['histories']);\n\n  const links = asArray(fields.issuelinks).map((link) => {\n    const related = link.outwardIssue || link.inwardIssue;\n    if (!related?.key) return null;\n    return {\n      key: String(related.key).toUpperCase(),\n      relation: plainText(link.type?.name || '', 300) || null,\n      direction: link.outwardIssue ? 'outward' : 'inward',\n      source: 'issueLink',\n      summary: plainText(related.fields?.summary || '', 800) || null,\n    };\n  }).filter(Boolean);\n\n  const all = { fields, renderedFields: issue.renderedFields || {}, worklogs, changelog };\n  const own = String(issueKey).toUpperCase();\n  const relatedSisKeys = [...new Set([...links.filter((link) => /^SIS-\\d+$/.test(link.key)).map((link) => link.key), ...refs(all, 'SIS').filter((key) => key !== own)])];\n  const recKeys = [...new Set([...links.filter((link) => /^REC-\\d+$/.test(link.key)).map((link) => link.key), ...refs(all, 'REC')])];\n  const limit = Number(seed.maxStoredIssueDescriptionChars || 8000);\n  const description = plainText(issue.renderedFields?.description || fields.description, limit) || null;\n  const readme = plainText(namedFieldText(issue, 'README') || '', limit) || null;\n  const errors = group.filter((row) => row.payload && !row.payload.fields && (row.payload.error || row.payload.message)).map((row) => ({\n    source: row.recordType,\n    message: plainText(row.payload.message || row.payload.error || '', 1000),\n    statusCode: row.payload.statusCode || row.payload.code || null,\n  }));\n\n  return {\n    json: {\n      kind: 'issueRecord',\n      role: seed.role || 'unknown',\n      issueKey: own,\n      context: seed.context || {},\n      originCommitShas: seed.originCommitShas || [],\n      relatedFrom: seed.relatedFrom || [],\n      issue: {\n        key: own,\n        browseUrl: String(seed.jiraBaseUrl || '').replace(/\\/$/, '') + '/browse/' + own,\n        fetchStatus: issue.fields ? 'retrieved' : (errors.length ? 'failedOrMissing' : 'notRetrieved'),\n        normalized: {\n          summary: plainText(fields.summary || '', 1500) || null,\n          issueType: plainText(fields.issuetype?.name || '', 300) || null,\n          status: plainText(fields.status?.name || '', 300) || null,\n          resolution: plainText(fields.resolution?.name || '', 300) || null,\n          priority: plainText(fields.priority?.name || '', 300) || null,\n          assignee: actorName(fields.assignee),\n          reporter: actorName(fields.reporter),\n          labels: asArray(fields.labels).map((value) => plainText(value, 300)).filter(Boolean),\n          components: asArray(fields.components).map((value) => plainText(value?.name || value, 300)).filter(Boolean),\n          fixVersions: asArray(fields.fixVersions).map((value) => plainText(value?.name || value, 300)).filter(Boolean),\n          description,\n          descriptionText: description,\n          descriptionTruncated: Boolean(description && description.length >= limit),\n          readme,\n        },\n        relationships: {\n          linkedIssues: links,\n          relatedSisKeys,\n          recKeys,\n        },\n        evidence: {\n          comments: [],\n          activityScanned: {\n            comments: 0,\n            worklogs: worklogs.length,\n            changelog: changelog.length,\n          },\n        },\n        rawIssue: issue,\n      },\n      fetchErrors: errors,\n    },\n  };\n});"
       },
-      "id": "c49d8d83-aa03-4435-befd-76edb801a4e7",
+      "id": "04452dde-63a2-4737-82ae-ad33ec23ff78",
       "name": "Compile generic issue record",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1072,
-        64
+        14400,
+        7552
       ]
     }
   ],
-  "pinData": {},
+  "pinData": {
+    "When executed by another workflow": [
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-1723",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-3662",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-1947",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-3862",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-2375",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5047",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-2830",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5178",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-2869",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-4888",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-2926",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5061",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-2948",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-4904",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-2986",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-4882",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-2994",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-4953",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3022",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5127",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3023",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-4916",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3045",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-4994",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3056",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-4947",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3076",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-4967",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3113",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5155",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3118",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5156",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3148",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5093",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3168",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5094",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3182",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5178",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3200",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5112",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3207",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5104",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3211",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5108",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3225",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5118",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3230",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5124",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3243",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5130",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3251",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5141",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3253",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5156",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3265",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5155",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3271",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5168",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3278",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5205",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3289",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5198",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3303",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5187",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3307",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5201",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3308",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5191",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3309",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5190",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3312",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5194",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3316",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5230",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3327",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5213",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3335",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5235",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3340",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5250",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3385",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5279",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3393",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5291",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-3417",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5314",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-5190",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-5191",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      },
+      {
+        "json": {
+          "kind": "issueSeed",
+          "stage": "rec",
+          "issueKey": "REC-798",
+          "role": "rec",
+          "context": {
+            "tagsPerPage": 100,
+            "jiraPageSize": 100,
+            "maxAiPayloadChars": 70000,
+            "maxStoredIssueDescriptionChars": 8000,
+            "maxStoredIssueComments": 12,
+            "maxStoredCommentChars": 1000,
+            "batchCommitSize": 5,
+            "repoOwner": "sistemas-telpin",
+            "repoName": "jsat",
+            "currentVersion": "1.2.28",
+            "currentRef": "1.2.28",
+            "githubApiBase": "https://api.github.com",
+            "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+            "jiraApiVersion": "2",
+            "previousTagOverride": "",
+            "previousVersionOverride": "",
+            "sisRegex": "\\bSIS-\\d+\\b",
+            "recRegex": "\\bREC-\\d+\\b",
+            "localAiBaseUrl": "http://localhost:11434",
+            "localAiModel": "qwen3:32b",
+            "batchIndex": ""
+          },
+          "jiraBaseUrl": "https://telpinsistemas.atlassian.net",
+          "jiraApiVersion": "2",
+          "relatedFrom": [
+            {
+              "parentIssueKey": "SIS-2649",
+              "source": "issueRelationship"
+            }
+          ]
+        }
+      }
+    ]
+  },
   "connections": {
     "When executed by another workflow": {
       "main": [
@@ -367,11 +2113,6 @@
         [
           {
             "node": "Jira - Get issue",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Jira - Get comments",
             "type": "main",
             "index": 0
           },
@@ -493,7 +2234,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "8fb5da38-653f-4384-ae4e-c9f09dbdec4d",
+  "versionId": "fa9e30a0-4229-424e-86aa-6a1312d3fe79",
   "meta": {
     "instanceId": "1b16b1df538ba12dc3f97edbb85caa7050d46c148134290feba80f8236c83db9"
   },
