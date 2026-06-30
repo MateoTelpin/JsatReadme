@@ -469,6 +469,18 @@
             {
               "name": "recRegex",
               "value": "\\bREC-\\d+\\b"
+            },
+            {
+              "name": "localAiBaseUrl",
+              "value": "http://localhost:11434"
+            },
+            {
+              "name": "localAiModel",
+              "value": "qwen3:32b"
+            },
+            {
+              "name": "batchIndex",
+              "value": ""
             }
           ],
           "number": [
@@ -495,6 +507,10 @@
             {
               "name": "maxStoredCommentChars",
               "value": 1000
+            },
+            {
+              "name": "batchCommitSize",
+              "value": 5
             }
           ]
         },
@@ -554,13 +570,27 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "const input = { ...$json };\nconst technicalReadme = String(input.technicalReadme || '').trim();\n\nif (!technicalReadme) {\n  throw new Error('No README content available to save.');\n}\n\nconst releaseVersion = String(\n  input.raw?.release?.currentVersion ||\n  input.raw?.raw?.release?.currentVersion ||\n  input.release?.currentVersion ||\n  'unknown'\n).trim();\n\nconst readmeFileName = `README-release-${releaseVersion}`.replace(/[<>:\"/\\\\|?*]+/g, '-') + '.md';\nconst outputPath = `C:/Users/mateo-soto/Desktop/proyectos/JsatReadme/${readmeFileName}`;\n\nreturn {\n  json: {\n    ...input,\n    releaseVersion,\n    readmeFileName,\n    outputPath,\n  },\n  binary: {\n    data: {\n      data: Buffer.from(technicalReadme, 'utf8').toString('base64'),\n      mimeType: 'text/markdown',\n      fileName: readmeFileName,\n      fileExtension: 'md',\n    },\n  },\n};"
+        "workflowId": {
+          "__rl": true,
+          "value": "saveReadmeWorkflow06",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
       },
       "id": "5f74567a-23f4-4c83-b72f-8d4de88e9391",
-      "name": "Prepare README file payload",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "name": "Execute 06 - Save README to file",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
         3536,
         272
@@ -832,7 +862,7 @@
       "main": [
         [
           {
-            "node": "Prepare README file payload",
+            "node": "Execute 06 - Save README to file",
             "type": "main",
             "index": 0
           }
